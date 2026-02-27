@@ -1,0 +1,149 @@
+#!/bin/bash
+
+#SBATCH --job-name=Variant_calling_pipeline
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=128G
+#SBATCH --array=1-4
+#SBATCH --output=/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/logs/Variant_calling_pipeline_BQRS_Dog_%A_%a.out
+#SBATCH --error=/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/logs/Variant_calling_pipeline_BQRS_Dog_%A_%a.err
+#SBATCH --chdir=/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/output/
+
+module purge
+
+# Carga tus modulos en la siguiente linea
+
+module load gatk/4.6.2.0
+module load r/4.4.1
+module load picard/2.6.0
+
+# Your script goes here
+
+# Este código se encarga de llamar, separar y filtrar variantes de nuestra familia de perros. Para usarlo con cualquier número de muestra, no sirve todavía.Hice esta versión sin el paso de >
+#Input: 4 BAMs procesados y filtrados para llamar variantes.
+#Output: Un archivo vcf con las variantes presentes en nuestra familia.
+
+Dog_ID="P${SLURM_ARRAY_TASK_ID}"
+
+echo "Procesando la muestra ${Dog_ID} en la tarea ${SLURM_ARRAY_TASK_ID}"
+
+echo "[$(date)] Recolectando información de la calidad del alineamiento"
+
+#Recolectar información de la calidad de la alineación
+picard CollectAlignmentSummaryMetrics \
+R=/mnt/data/cgonzaga/Data/Dog_genomes/reference/canFam6.fa \
+I=./bam_output/${Dog_ID}.alignment.sort.dedup.rg.bam \
+O=./bam_output/quality_metrics/${Dog_ID}_alignment_sort_dedup_rg_bam.txt 
+
+echo "[$(date)] LLamando variantes."
+
+gatk HaplotypeCaller \
+-R /mnt/data/cgonzaga/Data/Dog_genomes/reference/canFam6.fa \
+-I ./bam_output/${Dog_ID}.alignment.sort.dedup.rg.bam \
+-O ./vcf_output/${Dog_ID}_raw_variants_BQSR.vcf
+
+echo "[$(date)] Identificación de haplotipos completado. Iniciando proceso de selección de tipo de variantes con SelectVariants"
+echo "[$(date)] Seleccionando SNPS"
+
+gatk SelectVariants \
+-R /mnt/data/cgonzaga/Data/Dog_genomes/reference/canFam6.fa \
+-V ./vcf_output/${Dog_ID}_raw_variants_BQSR.vcf \
+--select-type-to-include SNP \
+-O ./vcf_output/${Dog_ID}_raw_SNPs_BQSR.vcf
+
+echo "[$(date)] Selección de SNPs completado. Seleccionando Indels"
+
+gatk SelectVariants \
+-R /mnt/data/cgonzaga/Data/Dog_genomes/reference/canFam6.fa \
+-V ./vcf_output/${Dog_ID}_raw_variants_BQSR.vcf \
+--select-type-to-include INDEL \
+-O ./vcf_output/${Dog_ID}_raw_INDELs_BQSR.vcf
+
+echo "[$(date)] Selección de tipo de variantes completado. Inciando filtrado de variantes con VariantFiltration. SUJETO A CAMBIOS"
+echo "[$(date)] Filtrando SNPs"
+
+Para saber más de como hice el hard-filtering, consultar este enlace: <https://gatk.broadinstitute.org/hc/en-us/articles/360035890471-Hard-filtering-germline-short-variants>
+gatk VariantFiltration \
+-R /mnt/data/cgonzaga/Data/Dog_genomes/reference/canFam6.fa \
+-V ./vcf_output/${Dog_ID}_raw_SNPs_BQSR.vcf \
+-O ./vcf_output/${Dog_ID}_SNPs_BQSR_filtered.vcf \
+--filter-name "QD_filter" \
+--filter-expression "QD < 2.0" \
+--filter-name "FS_filter" \
+--filter-expression "FS > 60.0" \
+--filter-name "SOR_filter" \
+--filter-expression "SOR > 4.0" \
+--filter-name "MQ_filter" \
+--filter-expression "MQ < 40.0" \
+--filter-name "MQRankSum_filter" \
+--filter-expression "MQRankSum < -12.15" \
+--filter-name "ReadPosRankSu_filter" \
+--filter-expression "ReadPosRankSum < -8.5"
+
+echo "[$(date)] Filtrado de SNPs completado. Iniciando Filtrado de INDELs"
+
+gatk VariantFiltration \
+-R /mnt/data/cgonzaga/Data/Dog_genomes/reference/canFam6.fa \
+-V ./vcf_output/${Dog_ID}_raw_INDELs_BQSR.vcf \
+-O ./vcf_output/${Dog_ID}_INDELs_BQSR_filtered.vcf \
+--filter-name "QD_filter" \
+--filter-expression "QD < 2.0" \
+--filter-name "FS_filter" \
+--filter-expression "FS > 200.0" \
+--filter-name "SOR_filter" \
+--filter-expression "SOR > 10.0"
+
+echo "[$(date)] Hard Filtering completado. Removiendo variantes que no pasaron el filtro. Esto es debido a que estas variantes serviran para el primer pase de recalibración de base"
+echo "[$(date)] Removiendo variantes del vcf con SNPs"
+
+gatk SelectVariants \
+-V ./vcf_output/${Dog_ID}_SNPs_BQSR_filtered.vcf \
+-O ./vcf_output/${Dog_ID}_SNPs_BQSR_ready.vcf \
+--exclude-filtered
+
+echo "[$(date)] Removiendo variantes del vcf con Indels"
+
+gatk SelectVariants \
+-V ./vcf_output/${Dog_ID}_INDELs_BQSR_filtered.vcf \
+-O ./vcf_output/${Dog_ID}_INDELs_BQSR_ready.vcf \
+--exclude-filtered 
+
+echo "[$(date)] Selección de tipo de variantes completado. Iniciando filtrado de variantes con VariantFiltration. SUJETO A CAMBIOS"
+echo "[$(date)] Filtrando SNPs"
+
+gatk VariantFiltration \
+-R /mnt/data/cgonzaga/Data/Dog_genomes/reference/canFam6.fa \
+-V ./vcf_output/${Dog_ID}_raw_SNPs.vcf \
+-O ./vcf_output/${Dog_ID}_SNPs_filtered.vcf \
+--filter-name "QD_filter" \
+--filter-expression "QD < 2.0" \
+--filter-name "FS_filter" \
+--filter-expression "FS > 60.0" \
+--filter-name "SOR_filter" \
+--filter-expression "SOR > 4.0" \
+--filter-name "MQ_filter" \
+--filter-expression "MQ < 40.0" \
+--filter-name "MQRankSum_filter" \
+--filter-expression "MQRankSum < -12.15" \
+--filter-name "ReadPosRankSum_filter" \
+--filter-expression "ReadPosRankSum < -8.5"
+
+echo "[$(date)] Filtrado de SNPs completado. Iniciando Filtrado de INDELs"
+
+gatk VariantFiltration \
+-R /mnt/data/cgonzaga/Data/Dog_genomes/reference/canFam6.fa \
+-V ./vcf_output/${Dog_ID}_raw_INDELs.vcf \
+-O ./vcf_output/${Dog_ID}_INDELs_filtered.vcf \
+--filter-name "QD_filter" \
+--filter-expression "QD < 2.0" \
+--filter-name "FS_filter" \
+--filter-expression "FS > 200.0" \
+--filter-name "SOR_filter" \
+--filter-expression "SOR > 10.0"
+
+echo "[$(date)] FIltrado de Indels completado"
+
+
+
+echo "El llamado de variantes ha sido exitoso"
