@@ -1,0 +1,142 @@
+#!/bin/bash
+
+#SBATCH --job-name=Variant_calling_pipeline_BQRS1
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=128G
+#SBATCH --array=1-4
+#SBATCH --output=/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/logs/Variant_calling_pipeline_BQRS_Dog_%A_%a.out
+#SBATCH --error=/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/logs/Variant_calling_pipeline_BQRS_Dog_%A_%a.err
+#SBATCH --chdir=/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/output/
+
+module purge
+
+# Carga tus modulos en la siguiente linea
+
+module load gatk/4.6.2.0
+module load r/4.4.1
+module load picard/2.6.0
+module load bcftools/1.22
+
+# Your script goes here
+
+Dog_ID="P${SLURM_ARRAY_TASK_ID}"
+
+echo "Procesando la muestra ${Dog_ID} en la tarea ${SLURM_ARRAY_TASK_ID}"
+
+echo "[$(date)] Recolectando información de la calidad del alineamiento"
+
+#Recolectar información de la calidad de la alineación
+picard CollectAlignmentSummaryMetrics \
+R=/mnt/data/cgonzaga/Data/Dog_genomes/reference/canFam6.fa \
+I=./bam_output/${Dog_ID}.alignment.sort.dedup.rg.bam \
+O=./bam_output/quality_metrics/${Dog_ID}_alignment_sort_dedup_rg_bam.txt
+
+echo "[$(date)] Iniciando recalibración de base (BQSR) con BaseRecalibrator"
+
+gatk BaseRecalibrator \
+-I ./bam_output/${Dog_ID}.alignment.sort.dedup.rg.bam \
+-R /mnt/data/cgonzaga/Data/Dog_genomes/reference/canFam6.fa \
+--known-sites /mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/resources/known_variants/download.big.ac.cn/idog/dogsd/vcf/canfam4/all_SNP.vcf.gz \
+--known-sites /mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/resources/known_variants/download.big.ac.cn/idog/dogsd/vcf/canfam4/indel/AutoAndXPAR.nonSNPs.filter.vcf.gz \
+-O ./bam_output/${Dog_ID}_recal_data.table
+
+echo "[$(date)] Recalibración de base completada. Aplicando la recalibración a los BAM con ApplyBQSR"
+
+gatk ApplyBQSR \
+-R /mnt/data/cgonzaga/Data/Dog_genomes/reference/canFam6.fa \
+-I ./bam_output/${Dog_ID}.alignment.sort.dedup.rg.bam \
+--bqsr-recal-file ./bam_output/${Dog_ID}_recal_data.table \
+-O ./bam_output/${Dog_ID}.alignment.sort.dedup.recalreads.bam
+
+echo "[$(date)] BAMs recalibrados correctamente. Iniciando segundo pase de recalibración de base para ver la tabla de covariables final"
+
+gatk BaseRecalibrator \
+-I ./bam_output/${Dog_ID}.alignment.sort.dedup.recalreads.bam \
+-R /mnt/data/cgonzaga/Data/Dog_genomes/reference/canFam6.fa \
+--known-sites /mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/resources/known_variants/download.big.ac.cn/idog/dogsd/vcf/canfam4/all_SNP.vcf.gz \
+--known-sites /mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/resources/known_variants/download.big.ac.cn/idog/dogsd/vcf/canfam4/indel/AutoAndXPAR.nonSNPs.filter.vcf.gz \
+-O ./bam_output/${Dog_ID}_recal_data_final.table
+
+echo "[$(date)] Recolectando información de la calidad del alineamiento"
+
+#Recolectar información de la calidad de la alineación
+picard CollectAlignmentSummaryMetrics \
+R=/mnt/data/cgonzaga/Data/Dog_genomes/reference/canFam6.fa \
+I=./bam_output/${Dog_ID}.alignment.sort.dedup.recalreads.bam \
+O=./bam_output/quality_metrics/${Dog_ID}_alignment_sort_dedup_recalreads_bam.txt
+
+echo "[$(date)] Segundo pase de recalibración de base completado. Produciendo reporte de recalibración de ambos pases con AnalyzeCovariates"
+
+#Hacer esto cuando ya tenga r/4.4.1 al paquete reshape o hacer un ambiente de R en /home/
+gatk AnalyzeCovariates \
+-before ./bam_output/${Dog_ID}_recal_data.table \
+-after ./bam_output/${Dog_ID}_recal_data_final.table \
+-plots ./bam_output/quality_metrics/${Dog_ID}_recalibration_plots.pdf
+
+echo "[$(date)] Reporte de recalibración completado. Llamando variantes reales con HaplotypeCaller"
+
+gatk HaplotypeCaller \
+-R /mnt/data/cgonzaga/Data/Dog_genomes/reference/canFam6.fa \
+-I ./bam_output/${Dog_ID}.alignment.sort.dedup.recalreads.bam \
+-O ./vcf_output/${Dog_ID}_raw_variants.vcf
+
+echo "[$(date)] Identificación de haplotipos completado. Iniciando proceso de selección de tipo de variantes con SelectVariants"
+echo "[$(date)] Seleccionando SNPS"
+
+gatk SelectVariants \
+-R /mnt/data/cgonzaga/Data/Dog_genomes/reference/canFam6.fa \
+-V ./vcf_output/${Dog_ID}_raw_variants.vcf \
+--select-type-to-include SNP \
+-O ./vcf_output/${Dog_ID}_raw_SNPs.vcf
+
+echo "[$(date)] Selección de SNPs completada. Seleccionando Indels"
+
+gatk SelectVariants \
+-R /mnt/data/cgonzaga/Data/Dog_genomes/reference/canFam6.fa \
+-V ./vcf_output/${Dog_ID}_raw_variants.vcf \
+--select-type-to-include INDEL \
+-O ./vcf_output/${Dog_ID}_raw_INDELs.vcf
+
+echo "[$(date)] Selección de tipo de variantes completado. Iniciando filtrado de variantes con VariantFiltration. SUJETO A CAMBIOS"
+echo "[$(date)] Filtrando SNPs"
+
+gatk VariantFiltration \
+-R /mnt/data/cgonzaga/Data/Dog_genomes/reference/canFam6.fa \
+-V ./vcf_output/${Dog_ID}_raw_SNPs.vcf \
+-O ./vcf_output/${Dog_ID}_SNPs_filtered.vcf \
+--filter-name "QD_filter" \
+--filter-expression "QD < 2.0" \
+--filter-name "FS_filter" \
+--filter-expression "FS > 60.0" \
+--filter-name "SOR_filter" \
+--filter-expression "SOR > 4.0" \
+--filter-name "MQ_filter" \
+--filter-expression "MQ < 40.0" \
+--filter-name "MQRankSum_filter" \
+--filter-expression "MQRankSum < -12.15" \
+--filter-name "ReadPosRankSum_filter" \
+--filter-expression "ReadPosRankSum < -8.5"
+
+echo "[$(date)] Filtrado de SNPs completado. Iniciando Filtrado de INDELs"
+
+gatk VariantFiltration \
+-R /mnt/data/cgonzaga/Data/Dog_genomes/reference/canFam6.fa \
+-V ./vcf_output/${Dog_ID}_raw_INDELs.vcf \
+-O ./vcf_output/${Dog_ID}_INDELs_filtered.vcf \
+--filter-name "QD_filter" \
+--filter-expression "QD < 2.0" \
+--filter-name "FS_filter" \
+--filter-expression "FS > 200.0" \
+--filter-name "SOR_filter" \
+--filter-expression "SOR > 10.0"
+
+echo "[$(date)] FIltrado de Indels completado"
+
+bctools merge \
+${Dog_ID}_INDELs_filtered.vcf \
+${Dog_ID}_SNPs_filtered.vcf \
+-Oz -o all_variants_BQSR.vcf.gz
+
+echo "El llamado de variantes ha sido exitoso"
