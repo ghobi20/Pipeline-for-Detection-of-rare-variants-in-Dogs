@@ -80,32 +80,32 @@ echo "[$(date)] Reporte de recalibración completado. Llamando variantes reales 
 gatk HaplotypeCaller \
 -R /mnt/data/cgonzaga/Data/Dog_genomes/reference/canFam6.fa \
 -I ./bam_output/${Dog_ID}.alignment.sort.dedup.recalreads.bam \
--O ./vcf_output/${Dog_ID}_raw_variants.vcf
+-O ./vcf_output/${Dog_ID}_raw_variants_bqsr.vcf
 
 echo "[$(date)] Identificación de haplotipos completado. Iniciando proceso de selección de tipo de variantes con SelectVariants"
 echo "[$(date)] Seleccionando SNPS"
 
 gatk SelectVariants \
 -R /mnt/data/cgonzaga/Data/Dog_genomes/reference/canFam6.fa \
--V ./vcf_output/${Dog_ID}_raw_variants.vcf \
+-V ./vcf_output/${Dog_ID}_raw_variants_bqsr.vcf \
 --select-type-to-include SNP \
--O ./vcf_output/${Dog_ID}_raw_SNPs.vcf
+-O ./vcf_output/${Dog_ID}_raw_SNPs_bqsr.vcf
 
 echo "[$(date)] Selección de SNPs completada. Seleccionando Indels"
 
 gatk SelectVariants \
 -R /mnt/data/cgonzaga/Data/Dog_genomes/reference/canFam6.fa \
--V ./vcf_output/${Dog_ID}_raw_variants.vcf \
+-V ./vcf_output/${Dog_ID}_raw_variants_bqsr.vcf \
 --select-type-to-include INDEL \
--O ./vcf_output/${Dog_ID}_raw_INDELs.vcf
+-O ./vcf_output/${Dog_ID}_raw_INDELs_bqsr.vcf
 
 echo "[$(date)] Selección de tipo de variantes completado. Iniciando filtrado de variantes con VariantFiltration. SUJETO A CAMBIOS"
 echo "[$(date)] Filtrando SNPs"
 
 gatk VariantFiltration \
 -R /mnt/data/cgonzaga/Data/Dog_genomes/reference/canFam6.fa \
--V ./vcf_output/${Dog_ID}_raw_SNPs.vcf \
--O ./vcf_output/${Dog_ID}_SNPs_filtered.vcf \
+-V ./vcf_output/${Dog_ID}_raw_SNPs_bqsr.vcf \
+-O ./vcf_output/${Dog_ID}_SNPs_filtered_bqsr.vcf \
 --filter-name "QD_filter" \
 --filter-expression "QD < 2.0" \
 --filter-name "FS_filter" \
@@ -123,8 +123,8 @@ echo "[$(date)] Filtrado de SNPs completado. Iniciando Filtrado de INDELs"
 
 gatk VariantFiltration \
 -R /mnt/data/cgonzaga/Data/Dog_genomes/reference/canFam6.fa \
--V ./vcf_output/${Dog_ID}_raw_INDELs.vcf \
--O ./vcf_output/${Dog_ID}_INDELs_filtered.vcf \
+-V ./vcf_output/${Dog_ID}_raw_INDELs_bqsr.vcf \
+-O ./vcf_output/${Dog_ID}_INDELs_filtered_bqsr.vcf \
 --filter-name "QD_filter" \
 --filter-expression "QD < 2.0" \
 --filter-name "FS_filter" \
@@ -135,8 +135,8 @@ gatk VariantFiltration \
 echo "[$(date)] FIltrado de Indels completado"
 
 bctools merge \
-${Dog_ID}_INDELs_filtered.vcf \
-${Dog_ID}_SNPs_filtered.vcf \
+${Dog_ID}_INDELs_filtered_bqsr.vcf \
+${Dog_ID}_SNPs_filtered_bqsr.vcf \
 -Oz -o all_variants_BQSR.vcf.gz
 
 echo "El llamado de variantes ha sido exitoso"
