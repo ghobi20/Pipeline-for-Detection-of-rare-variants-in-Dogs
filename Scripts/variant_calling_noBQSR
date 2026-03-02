@@ -144,6 +144,9 @@ gatk VariantFiltration \
 
 echo "[$(date)] FIltrado de Indels completado"
 
-
+bctools merge \
+${Dog_ID}_INDELs_filtered.vcf \
+${Dog_ID}_SNPs_filtered.vcf \
+-Oz -o all_variants.vcf.gz
 
 echo "El llamado de variantes ha sido exitoso"
