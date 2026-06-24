@@ -32,3 +32,4 @@ RGID=22JCHNLT4.8
 
 echo "Creando nuevo indice para bam con Read Groups (RG)"
 
+samtools index ${Dog_ID}.alignment.sort.dedup.rg.bam 
