@@ -15,7 +15,7 @@
 module load bwa/0.7.8
 #
 # Write your commands in the next line
-bwa mem -M -t 32 \
+bwa mem -M -t 32 -R\
 /mnt/Timina/cgonzaga/Data/Dog_genomes/reference/canFam6.fa.gz \
 /mnt/Timina/cgonzaga/Data/Dog_genomes/Fam_chih_epilepsy/P1_1.fastq.gz \
 /mnt/Timina/cgonzaga/Data/Dog_genomes/Fam_chih_epilepsy/P1_2.fastq.gz > /mnt/Timina/cgonzaga/sgamino/Dog_epilepsy_alignment/P1_alignment.sam
