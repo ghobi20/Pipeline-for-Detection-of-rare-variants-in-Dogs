@@ -1,3 +1,6 @@
+#!/bin/bash
+
+#SBATCH --job-name=Alignment
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=2
 #SBATCH --mem=32G
