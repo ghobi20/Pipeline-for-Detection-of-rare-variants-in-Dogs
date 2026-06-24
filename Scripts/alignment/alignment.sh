@@ -18,7 +18,7 @@ Dog_ID="P${SLURM_ARRAY_TASK_ID}"
 
 echo "Procesando la muestra ${Dog_ID} en la tarea ${SLURM_ARRAY_TASK_ID}" 
 
-bwa mem -M -t 32 -R \
+bwa mem -M -t 2 -R \
 /mnt/Timina/cgonzaga/Data/Dog_genomes/reference/canFam6.fa.gz \
 /mnt/Timina/cgonzaga/Data/Dog_genomes/Fam_chih_epilepsy/${Dog_ID}_1.fastq.gz \
 /mnt/Timina/cgonzaga/Data/Dog_genomes/Fam_chih_epilepsy/${Dog_ID}_2.fastq.gz > /mnt/Timina/cgonzaga/sgamino/Dog_epilepsy_alignment/${Dog_ID}_alignment.sam
