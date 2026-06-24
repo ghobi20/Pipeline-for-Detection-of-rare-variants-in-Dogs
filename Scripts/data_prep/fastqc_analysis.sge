@@ -1,0 +1,43 @@
+#!/bin/bash
+# Use current working directory
+#$ -cwd
+#
+# Join stdout and stderr
+#$ -j y
+#
+# Run job through bash shell
+#$ -S /bin/bash
+#
+#You can edit the script since this line
+#
+# Your job name
+#$ -N fastqc
+#$ -t 1-8
+#$ -l vf=10G
+# Send an email after the job has finished
+#$ -m e
+#$ -o /mnt/Timina/cgonzaga/Data/Dog_genomes/Fam_chih_epilepsy/fastqc/logs
+#$ -e /mnt/Timina/cgonzaga/Data/Dog_genomes/Fam_chih_epilepsy/fastqc/logs
+#$ -M ghobibohg@gmail.com
+#
+# If modules are needed, source modules environment (Do not delete the next line):
+. /etc/profile.d/modules.sh
+#
+# Add any modules you might require:
+module load fastqc/0.12.1
+#
+# Write your commands in the next line
+
+#Aquí elijo todos los archivos a procesar en una lista
+FILES=( /mnt/Timina/cgonzaga/Data/Dog_genomes/Fam_chih_epilepsy/*.fastq.gz )
+#Aquí asigno una tarea a cada elemento de la lista
+FILE=${FILES[$SGE_TASK_ID-1]}
+#Por ultimo, tomo el nombre que va antes de la secuencia del nombre compartido
+BASE=$(basename "$FILE")
+BASE="${BASE%.fastq.gz}"
+
+echo "Procesando tarea ${BASE} en tarea $SGE_TASK_ID"
+
+#Este comando sirve para indexar los archivos BAM creados del alineamiento de nuestros genomas.
+fastqc /mnt/Timina/cgonzaga/Data/Dog_genomes/Fam_chih_epilepsy/${BASE}.fastq.gz
+
