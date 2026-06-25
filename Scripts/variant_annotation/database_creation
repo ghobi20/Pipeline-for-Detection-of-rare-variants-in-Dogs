@@ -7,13 +7,13 @@
 #SBATCH --mem=64G
 #SBATCH --output=/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/logs/Dog_ann_database_creation%A_%a.out
 #SBATCH --error=/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/logs/Dog_ann_database_creation_%A_%a.err
-#SBATCH --chdir=/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/resources
+#SBATCH --chdir=/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/resources/annovar_dog
 
 module purge
 
 # Carga tus modulos en la siguiente linea
 
 # Your script goes here
-/home/sgamino/annovar/annotate_variation.pl -downdb -buildver canFam6 gene dog_ann_db
+#/home/sgamino/annovar/annotate_variation.pl -downdb -buildver canFam6 gene dog_ann_db 
 /home/sgamino/annovar/annotate_variation.pl --buildver canFam6 --downdb seq dog_ann_db/canFam6_seq
-/home/sgamino/annovar/retrieve_seq_from_fasta.pl dog_ann_db/canFam6_refGene.txt -seqfile dog_ann_db/canFam6_seq/canFam6.fa -format refGene -outfile dog_ann_db/canFam6_refGeneMrna.fa
+/home/sgamino/annovar/retrieve_seq_from_fasta.pl dog_ann_db/ncbiRefSeq.txt -seqfile dog_ann_db/canFam6_seq/canFam6.fa -format refGene -outfile dog_ann_db/canFam6_ncbi_refGeneMrna.fa
