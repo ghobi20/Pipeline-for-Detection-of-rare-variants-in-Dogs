@@ -7,11 +7,10 @@
 #SBATCH --mem=5G
 #SBATCH --output=/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/logs/canfam4_to_canfam6_%A_%a.out
 #SBATCH --error=/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/logs/canfam4_to_canfam6_%A_%a.err
-#SBATCH --chdir=/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/resources
+#SBATCH --chdir=/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/resources/annovar_dog/dog_ann_db
 
 module purge
 
 # Carga tus modulos en la siguiente linea
-wget -r ftp://hgdownload.soe.ucsc.edu/goldenPath/canFam6/database/refGene.txt.gz 
-wget -r ftp://hgdownload.soe.ucsc.edu/goldenPath/canFam6/database/refLink.txt.gz 
-wget -r ftp://hgdownload.soe.ucsc.edu/goldenPath/canFam6/database/refGene.txt.gz 
+wget -r ftp://hgdownload.soe.ucsc.edu/goldenPath/canFam6/database/ncbiRefSeq.txt.gz  
+wget -r ftp://hgdownload.soe.ucsc.edu/goldenPath/canFam6/database/ncbiRefSeqLink.txt.gz
