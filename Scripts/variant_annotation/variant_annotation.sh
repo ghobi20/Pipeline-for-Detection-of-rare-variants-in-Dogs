@@ -17,17 +17,17 @@ module purge
 # Your script goes here
 
 Dog_ID="P${SLURM_ARRAY_TASK_ID}"
-/home/sgamino/annovar/table_annovar.pl ${Dog_ID}_SNPs_filtered_bqsr.avinput /mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/resources/annovar_dog/dog_ann_db \
+/home/sgamino/annovar/table_annovar.pl ${Dog_ID}_SNPs_filtered_bqsr.avinput /mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/resources/annovar_dog/new_dog_ann_db \
 -buildver canFam6 \
--out ${Dog_ID}_SNPs \
+-out ${Dog_ID}_SNPs_anno \
 -remove \
 -protocol refGene \
 -operation g \
 -nastring .
 
-/home/sgamino/annovar/table_annovar.pl ${Dog_ID}_INDELs_filtered_bqsr.avinput /mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/resources/annovar_dog/dog_ann_db \
+/home/sgamino/annovar/table_annovar.pl ${Dog_ID}_INDELs_filtered_bqsr.avinput /mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/resources/annovar_dog/nwe_dog_ann_db \
 -buildver canFam6 \
--out ${Dog_ID}_INDELs \
+-out ${Dog_ID}_INDELs_anno \
 -remove \
 -protocol refGene \
 -operation g \
