@@ -18,7 +18,7 @@ module load picard/2.6.0
 # Your script goes here
 
 echo "Transformando el vcf a bed de los SNPs de iDOG..."
-LiftoverVcf \
+picard LiftoverVcf \
   I=all_SNP.vcf.gz \
   O=../canFam6/all_SNP_canFam6.vcf.gz \
   CHAIN=/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/resources/liftOver_info/chainmap/canFam4ToCanFam6.over.chain.gz \
@@ -26,7 +26,7 @@ LiftoverVcf \
   R=/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/resources/canFam6/canFam6.fa.gz
 
 echo "Transformando el vcf a bed de los INDELs de iDOG..."
-LiftoverVcf \
+picard LiftoverVcf \
   I=./indel/AutoAndXPAR.nonSNPs.filter.vcf.gz \
   O=../canFam6/AutoAndXPAR.nonSNPs.filter.vcf.gz \
   CHAIN=/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/resources/liftOver_info/chainmap/canFam4ToCanFam6.over.chain.gz \
