@@ -22,7 +22,7 @@ picard LiftoverVcf \
   I=all_SNP.vcf.gz \
   O=../canFam6/all_SNP_canFam6.vcf.gz \
   CHAIN=/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/resources/liftOver_info/chainmap/canFam4ToCanFam6.over.chain.gz \
-  REJECT=all_SNP_rejected.vcf.gz \
+  REJECT=../canFam6/all_SNP_rejected.vcf.gz \
   R=/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/resources/canFam6/reference/canFam6.fa.gz
 
 echo "Transformando el vcf a bed de los INDELs de iDOG..."
@@ -30,5 +30,5 @@ picard LiftoverVcf \
   I=./indel/AutoAndXPAR.nonSNPs.filter.vcf.gz \
   O=../canFam6/AutoAndXPAR.nonSNPs.filter.vcf.gz \
   CHAIN=/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/resources/liftOver_info/chainmap/canFam4ToCanFam6.over.chain.gz \
-  REJECT=AutoAndXPAR.nonSNPs.filter.rejected.vcf.gz \
+  REJECT=../canFam6/AutoAndXPAR.nonSNPs.filter.rejected.vcf.gz \
   R=/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/resources/canFam6/reference/canFam6.fa.gz
