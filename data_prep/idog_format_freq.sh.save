@@ -1,0 +1,21 @@
+#!/bin/bash
+
+#SBATCH --job-name=iDOG_fromat_freq.sh
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=5
+#SBATCH --mem=32G
+#SBATCH --output=/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/logs/iDOG_format_freq.out
+#SBATCH --error=/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/logs/iDOG_format_freq.err
+#SBATCH --chdir=/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/resources/annovar
+
+module purge
+
+# Carga tus modulos en la siguiente linea
+
+module load bcftools 
+module load htslib/1.9
+
+# Your script goes here
+
+bcftools query -f "%CHROM %POS %END %REF %ALT %INFO/AF\n" all_SNP.filtered.liftover.vcf.gz | sed "s/^chr//" > annovar_ann_format_freq.txt

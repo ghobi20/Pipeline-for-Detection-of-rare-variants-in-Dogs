@@ -1,0 +1,31 @@
+#!/bin/bash
+# Use current working directory
+#$ -cwd
+#
+# Join stdout and stderr
+#$ -j y
+#
+# Run job through bash shell
+#$ -S /bin/bash
+#
+#You can edit the script since this line
+#
+# Your job name
+#$ -N Bam_BQRS_single_trim_4
+#$ -l vf=64G
+# Send an email after the job has finished
+#$ -m e
+#$ -o /mnt/Timina/cgonzaga/sgamino/Dog_epilepsy_alignment/logs/bam_alignment/
+#$ -e /mnt/Timina/cgonzaga/sgamino/Dog_epilepsy_alignment/logs/bam_alignment/
+#$ -M ghobibohg@gmail.com
+#
+# If modules are needed, source modules environment (Do not delete the next line):
+. /etc/profile.d/modules.sh
+#
+# Add any modules you might require:
+module load gatk/4.3.0.0
+#
+# Write your commands in the next line
+
+gatk BaseRecalibrator -I /mnt/Timina/cgonzaga/sgamino/Dog_epilepsy_alignment/output/bam_output/P4.alignment.dup.bam -O /mnt/Timina/cgonzaga/sgamino/Dog_epilepsy_alignment/output/bam_output/P4_recal_data.table -R /mnt/Timina/cgonzaga/Data/Dog_genomes/reference/canFam6.fa.gz --known-sites /mnt/Timina/cgonzaga/Data/Dog_genomes/dog_variants/SRZ189891_722g.990.SNP.INDEL.chrAll.vcf.gz
+gatk Apply BQSR -I /mnt/Timina/cgonzaga/sgamino/Dog_epilepsy_alignment/output/bam_output/P4.alignment.dup.bam  -O /mnt/Timina/cgonzaga/sgamino/Dog_epilepsy_alignment/output/bam_output/P4.bqsr.sort.dup.bam -R /mnt/Timina/cgonzaga/Data/Dog_genomes/reference/canFam6.fa.gz --bqsr-recal-file /mnt/Timina/cgonzaga/sgamino/Dog_epilepsy_alignment/output/P4_recal_data.table

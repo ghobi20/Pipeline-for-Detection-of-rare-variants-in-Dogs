@@ -1,0 +1,24 @@
+#You can edit the scriptsince this line
+#
+# Your job name
+#$ -N Dog_genome_alignment_trim_3
+#
+#$ -l vf=50G
+#$ -pe openmp 2
+# Send an email after the job has finished
+#$ -m e
+#$ -o /mnt/Timina/cgonzaga/sgamino/Dog_epilepsy_alignment/logs/bam_alignment
+#$ -e /mnt/Timina/cgonzaga/sgamino/Dog_epilepsy_alignment/logs/bam_alignment
+#$ -M ghobibohg@gmail.com
+#
+# If modules are needed, source modules environment (Do not delete the next line):
+. /etc/profile.d/modules.sh
+#
+# Add any modules you might require:
+module load bwa/0.7.8
+#
+# Write your commands in the next line
+bwa mem -M -t 32 
+/mnt/Timina/cgonzaga/Data/Dog_genomes/reference/canFam6.fa.gz \
+/mnt/Timina/cgonzaga/Data/Dog_genomes/Fam_chih_epilepsy/trimmed/P3_1.trim.fastq.gz \
+/mnt/Timina/cgonzaga/Data/Dog_genomes/Fam_chih_epilepsy/trimmed/P3_2.trim.fastq.gz > /mnt/Timina/cgonzaga/sgamino/Dog_epilepsy_alignment/output/bam_output/P3_trim_alignment.sam.gz

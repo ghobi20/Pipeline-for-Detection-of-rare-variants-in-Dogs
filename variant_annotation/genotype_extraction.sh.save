@@ -1,0 +1,24 @@
+#!/bin/bash
+
+#SBATCH --job-name=genotype_extraction.sh
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=5
+#SBATCH --mem=32G
+#SBATCH --output=/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/logs/genotype_extraction.out
+#SBATCH --error=/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/logs/genotype_extraction.err
+#SBATCH --chdir=/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/output/vcf_output
+
+module purge
+
+# Carga tus modulos en la siguiente linea
+
+module load bcftools
+module load htslib/1.9
+
+# Your script goes here
+
+echo -e "Creando base de datos de genotipos"
+bcftools query -f "%CHROM,%POS,%END,%REF,%ALT[,%SAMPLE=%GT]\n" complete_family.vcf.gz > ../annovar_output/complete_family_genotypes.txt
+
+awk 

@@ -1,0 +1,21 @@
+#You can edit the scriptsince this line
+#
+# Your job name
+#$ -N Dog_genome_alignment_1
+#
+#$ -l vf=10G
+# Send an email after the job has finished
+#$ -m e
+#$ -M ghobibohg@gmail.com
+#
+# If modules are needed, source modules environment (Do not delete the next line):
+. /etc/profile.d/modules.sh
+#
+# Add any modules you might require:
+module load bwa/0.7.8
+#
+# Write your commands in the next line
+bwa mem -M -t 32 \ 
+/mnt/Timina/cgonzaga/Data/Dog_genomes/reference/canFam6.fa.gz \ 
+/mnt/Timina/cgonzaga/Data/Dog_genomes/Fam_chih_epilepsy/P1_1.fastq.gz \
+/mnt/Timina/cgonzaga/Data/Dog_genomes/Fam_chih_epilepsy/P1_2.fastq.gz > /mnt/Timina/cgonzaga/sgamino/Dog_epilepsy_alignment/P1_alignment.sam.gz

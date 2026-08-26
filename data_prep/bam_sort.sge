@@ -1,0 +1,43 @@
+#!/bin/bash
+# Use current working directory
+#$ -cwd
+#
+# Join stdout and stderr
+#$ -j y
+#
+# Run job through bash shell
+#$ -S /bin/bash
+#
+#You can edit the script since this line
+#
+# Your job name
+#$ -N Bam_sort_trim
+#$ -t 1-4
+#$ -l vf=20G
+# Send an email after the job has finished
+#$ -m e
+#$ -o /mnt/Timina/cgonzaga/sgamino/Dog_epilepsy_alignment/logs/bam_alignment/
+#$ -e /mnt/Timina/cgonzaga/sgamino/Dog_epilepsy_alignment/logs/bam_alignment/
+#$ -M ghobibohg@gmail.com
+#
+# If modules are needed, source modules environment (Do not delete the next line):
+. /etc/profile.d/modules.sh
+#
+# Add any modules you might require:
+module load samtools/1.9
+#
+# Write your commands in the next line
+
+#Aquí elijo todos los archivos a procesar en una lista
+FILES=( /mnt/Timina/cgonzaga/sgamino/Dog_epilepsy_alignment/output/bam_output/*.alignment.bam )
+#Aquí asigno una tarea a cada elemento de la lista
+FILE=${FILES[$SGE_TASK_ID-1]}
+#Por ultimo, tomo el nombre que va antes de la secuencia del nombre compartido
+BASE=$(basename "$FILE")
+BASE="${BASE%.alignment.bam}"
+
+echo "Procesando tarea ${BASE} en tarea $SGE_TASK_ID"
+
+#Este comando sirve para ordenar los archivos BAM creados del alineamiento de nuestros genomas.
+samtools sort -@ 4 -o /mnt/Timina/cgonzaga/sgamino/Dog_epilepsy_alignment/output/bam_output/${BASE}.alignment.sort.bam "$FILE"
+samtools index /mnt/Timina/cgonzaga/sgamino/Dog_epilepsy_alignment/output/bam_output/${BASE}.alignment.sort.bam  

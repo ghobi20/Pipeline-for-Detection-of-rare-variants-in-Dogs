@@ -1,0 +1,30 @@
+#!/bin/bash
+
+#SBATCH --job-name=Alignment_summary_metrics
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=2
+#SBATCH --mem=64G
+#SBATCH --array=1-4
+#SBATCH --output=/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/logs/Variant_calling_BQSR_%A_%a.out
+#SBATCH --error=/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/logs/Variant_Calling_BQSR_%A_%a.err
+#SBATCH --chdir=/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/output/bam_output
+
+module purge
+
+# Carga tus modulos en la siguiente linea
+
+module load gatk/4.6.2.0 (D)
+
+# Your script goes here
+
+Dog_ID="P${SLURM_ARRAY_TASK_ID}"
+
+echo "Procesando la muestra ${Dog_ID} en la tarea ${SLURM_ARRAY_TASK_ID}" 
+echo "[$(date)] Comenzando la corrida de HaplotypeCaller"
+
+gatk HaplotypeCaller \
+-R /mnt/data/cgonzaga/Data/Dog_genomes/reference/canFam6.fa.gz \
+-I ${Dog_ID}.alignment.sort.dedup.bam \
+-o ${Dog_ID}_raw_reads.vcf
+
