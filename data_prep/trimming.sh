@@ -26,4 +26,8 @@ fastp -i ../raw_data/${Dog_ID}_1.fastq.gz -I ../raw_data/${Dog_ID}_2.fastq.gz \
 -o ${Dog_ID}_1.trim.fastq.gz -O ${Dog_ID}_2.trim.fastq.gz \
 --detect_adapter_for_pe \
 -g \
+-j "${Dog_ID}_fastp.json" \
+-h "${Dog_ID}_fastp.html"
+
+mv *_fastp.* ./fastp
 
