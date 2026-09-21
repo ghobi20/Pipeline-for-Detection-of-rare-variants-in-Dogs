@@ -1,0 +1,6 @@
+id,status,fwd,rvs
+1,affected,/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/fastq_data/raw_data/P1_1.fastq.gz,/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/fastq_data/raw_data/P1_2.fastq.gz
+2,unaffected,/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/fastq_data/raw_data/P2_1.fastq.gz,/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/fastq_data/raw_data/P2_2.fastq.gz
+3,unaffected,/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/fastq_data/raw_data/P3_1.fastq.gz,/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/fastq_data/raw_data/P3_2.fastq.gz
+4,unnafected,/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/fastq_data/raw_data/P4_1.fastq.gz,/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/fastq_data/raw_data/P4_2.fastq.gz
+
