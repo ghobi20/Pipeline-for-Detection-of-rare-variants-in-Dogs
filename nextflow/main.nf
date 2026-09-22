@@ -48,15 +48,33 @@ process Trimming {
 	"""
 }
 
-process refGenomeIndex {
-	
-	input:
-	val(refGenome)
+process refGenomeIndex {	
 
+	input:
+	path(refGenome)
+
+	output:
+	tuple path(${refGenome}), path("${refGenome.SimpleName}.fa.*")
+
+	script:
+	"""
+	module load samtools/1.22.1
+	module load bwa/0.7.19
+
+	samtools faidx ${refGenome}
+	bwa index ${refGenome}
+	"""
+}
+
+process BwaAlignment {
+	input:
+	
+	
 	output:
 
 	script:
 	"""
+	
 	"""
 }
 
@@ -73,16 +91,17 @@ workflow {
 			)	
 		}
 
-	fastqc_1(sampleMetadata_ch)
+	Fastqc_1(sampleMetadata_ch)
 
-	trimming(sampleMetadata_ch)
+	Trimming(sampleMetadata_ch)
 
-	refGenomeIndex(params.refGenomePath)
+	RefGenomeIndex(params.refGenomePath)
+
+	BwaAlignment(refGenomeIndex.out, Trimming.out.fastp_trim)
 	
 	publish:
-	fastqc1_reports = fastqc_1.out.html, fastqc_1.out.zip
-	trimmed_reads = trimming.out.fastp_trim 
-	trimming_reports = trimming.out.fastp_json, trimming.out.fastp_html
+	fastqc1_reports = Fastqc_1.out.html, Fastqc_1.out.zip 
+	trimming_reports = Trimming.out.fastp_json, Trimming.out.fastp_html
 }
 
 output {
@@ -91,13 +110,8 @@ output {
 		mode 'copy'
 	}
 
-	trimming_reads{
-		path 'fastq_data/trim_data'
-		mode 'copy'
-	}
-
 	trimming_qc1_reports{
 		path 'fastq_data/trim_data/qc_reports'
 		mode 'copy'
 	}
-}
+
