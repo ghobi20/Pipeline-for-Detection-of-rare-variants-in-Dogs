@@ -17,8 +17,14 @@ module load plink/2.0
 
 # Your script goes herep
 
-plink2 --bfile plink_backbone/canvas_backbone_90pct_v4_canfam4 --fa /mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/resources/reference/canFam4/canFam4.fa --chr-set 38 --make-pgen --out plink_backbone/canvas_backbone_90pct_v4_canfam4_ref
-plink2 --bfile plink_imputed_maf0.01/canvas_imputed_maf0.01 --fa /mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/resources/reference/canFam4/canFam4.fa --chr-set 38 --make-pgen --out plink_imputed_maf0.01/canvas_imputed_maf0.01_canFam4_ref
+#plink2 --bfile plink_backbone/canvas_backbone_90pct_v4_canfam4 \
+#	--fa /mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/resources/reference/canFam4/canFam4.fa \
+#	--ref-from-fa --chr-set 38 --make-pgen \
+#	--out plink_backbone/canvas_backbone_90pct_v4_canfam4_ref
+#plink2 --bfile plink_imputed_maf0.01/canvas_imputed_maf0.01 \
+#	--fa /mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/resources/reference/canFam4/canFam4.fa \
+#	--ref-from-fa --chr-set 38 --make-pgen \
+#	--out plink_imputed_maf0.01/canvas_imputed_maf0.01_canFam4_ref
 
-plink2 --pfile plink_backbone/canvas_backbone_90pct_v4_canfam4_ref --chr-set 38 --freq --out plink_backbone/canvas_backbone_90pct_v4_canfam4_AF
-plink2 --pfile plink_imputed_maf0.01/canvas_imputed_maf0.01_canFam4_ref --chr-set 38 --freq --out plink_imputed_maf0.01/canvas_imputed_maf0.01_canFam4_AF
+#plink2 --pfile plink_backbone/canvas_backbone_90pct_v4_canfam4_ref --chr-set 38 --geno-counts --out plink_backbone/canvas_backbone_90pct_v4_canfam4_AlleleCounts
+#plink2 --pfile plink_imputed_maf0.01/canvas_imputed_maf0.01_canFam4_ref --chr-set 38 --geno-counts --out plink_imputed_maf0.01/canvas_imputed_maf0.01_AlleleCounts

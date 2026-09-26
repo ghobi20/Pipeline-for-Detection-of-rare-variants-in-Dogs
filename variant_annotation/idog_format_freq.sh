@@ -7,7 +7,7 @@
 #SBATCH --mem=32G
 #SBATCH --output=/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/logs/iDOG_format_freq.out
 #SBATCH --error=/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/logs/iDOG_format_freq.err
-#SBATCH --chdir=/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/resources/annovar_dog/dog_ann_db
+#SBATCH --chdir=/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/resources/annovar_dog/canFam4/dog_ann_db
 
 module purge
 
@@ -19,13 +19,15 @@ module load htslib/1.9
 # Your script goes here
 
 echo -e "Creando base de datos genérica para la frecuencia alélica a partir de SNPs de Dog10k\n"
-bcftools query -f "%CHROM\t%POS\t%END\t%REF\t%ALT\t%INFO/AF\n" /mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/resources/known_variants/canFam6/all_SNP.filtered.liftover.vcf.gz | sed "s/^chr//" > Dog10k_SNPs_AF.txt
+bcftools query -f "%CHROM\t%POS\t%END\t%REF\t%ALT\t%INFO/AF\n" /mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/resources/known_variants/canFam4/Dog_10k/all_SNP.FILTERED.vcf.gz \
+| sed "s/^chr//" > canFam4_Dog10k_SNPs_AF.txt
 
 echo -e "Creando base de datos genérica para la frecuencia alélica a partir de INDELs de Dog10k\n"
-bcftools query -f "%CHROM\t%POS\t%END\t%REF\t%ALT\t%INFO/AF\n" /mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/resources/known_variants/canFam6/AutoAndXPAR.nonSNPs.filtered.liftover.vcf.gz | sed "s/^chr//" > Dog10k_INDELs_AF.txt
+bcftools query -f "%CHROM\t%POS\t%END\t%REF\t%ALT\t%INFO/AF\n" /mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/resources/known_variants/canFam4/Dog_10k/AutoAndXPAR.nonSNPs.filter.FILTERED.vcf.gz \
+| sed "s/^chr//" > canFam4_Dog10k_INDELs_AF.txt
 
 echo -e "Uniendo archivos de SNPs y INDELs"
-cat Dog10k_SNPs_AF.txt Dog10k_INDELs_AF.txt > canFam6_Dog10k_AF.txt
+cat canFam4_Dog10k_SNPs_AF.txt canFam4_Dog10k_INDELs_AF.txt > canFam4_Dog10k_AF.txt
 
 echo -e "Eliminando archivos intermedios"
-rm Dog10k_SNPs_AF.txt Dog10k_INDELs_AF.txt 
+rm canFam4_Dog10k_SNPs_AF.txt canFam4_Dog10k_INDELs_AF.txt 
