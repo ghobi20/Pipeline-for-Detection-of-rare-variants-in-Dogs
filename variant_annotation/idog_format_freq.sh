@@ -19,10 +19,13 @@ module load htslib/1.9
 # Your script goes here
 
 echo -e "Creando base de datos genérica para la frecuencia alélica a partir de SNPs de Dog10k\n"
-bcftools query -f "%CHROM\t%POS\t%END\t%REF\t%ALT\t%H\n" /mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/resources/known_variants/canFam6/all_SNP.filtered.liftover.vcf.gz | sed "s/^chr//" > Dog10k_SNPs_AF.txt
+bcftools query -f "%CHROM\t%POS\t%END\t%REF\t%ALT\t%INFO/AF\n" /mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/resources/known_variants/canFam6/all_SNP.filtered.liftover.vcf.gz | sed "s/^chr//" > Dog10k_SNPs_AF.txt
 
 echo -e "Creando base de datos genérica para la frecuencia alélica a partir de INDELs de Dog10k\n"
 bcftools query -f "%CHROM\t%POS\t%END\t%REF\t%ALT\t%INFO/AF\n" /mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/resources/known_variants/canFam6/AutoAndXPAR.nonSNPs.filtered.liftover.vcf.gz | sed "s/^chr//" > Dog10k_INDELs_AF.txt
 
 echo -e "Uniendo archivos de SNPs y INDELs"
 cat Dog10k_SNPs_AF.txt Dog10k_INDELs_AF.txt > canFam6_Dog10k_AF.txt
+
+echo -e "Eliminando archivos intermedios"
+rm Dog10k_SNPs_AF.txt Dog10k_INDELs_AF.txt 
