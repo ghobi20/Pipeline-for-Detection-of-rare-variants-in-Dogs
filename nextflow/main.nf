@@ -1,4 +1,4 @@
-l####################################################################################################
+####################################################################################################
 Aquí va en canal y los parámetros. Aún no se como configurarlos, entonces comenzaré con los procesos.
 #####################################################################################################
 export NXF_SYNTAX_PARSER=v2
@@ -100,11 +100,27 @@ process BwaAlignment {
 
 process MarkDuplicates {
 	input:
+	tuple val(meta), path(bam_file), path(bam_idx_file)	
 
 	output:
+	tuple val(meta), path("P${meta.id}.markdup.sort.bam"), path("P${meta.id}.markdup.sort.bam.bai"), emit: markdup_bamFiles
+	path("P${meta.id}_markdup_metrics.txt"), emit: markdup_bamFiles_metrics
 
 	script:
+	"""
+	module load picard/2.6.0
+	module load samtools/1.22.1
+
+	MarkDuplicates \
+	I=${bam_file} \
+	O=P${meta.id}.markdup.sort.bam \
+	METRICS_FILE=P${meta.id}_markdup_metrics.txt
+
+	samtools index P${meta.id}.markdup.sort.bam 
+	"""
 }
+
+process 
 
 workflow {
 
@@ -132,7 +148,8 @@ workflow {
 	publish:
 	fastqc1_reports = Fastqc_1.out.html, Fastqc_1.out.zip 
 	trimming_reports = Trimming.out.fastp_json, Trimming.out.fastp_html
-	Bam_files 
+	markdup_BamFiles = MarkDuplicates.out.markdup_bamFiles
+	markdup_BamFiles_metrics = MarkDuplicates.out.markdup_bamFiles_metrics
 }
 
 output {
@@ -143,5 +160,15 @@ output {
 
 	trimming_qc1_reports{
 		path 'input/fastq_data/trim_data/qc_reports'
+		mode 'copy'
+	}
+	
+	markdup_BamFiles{
+		path 'output/bam_data/'
+		mode 'copy'
+	}
+
+	markdup_BamFiles{
+		path 'output/bam_data/qc_metrics'
 		mode 'copy'
 	}
