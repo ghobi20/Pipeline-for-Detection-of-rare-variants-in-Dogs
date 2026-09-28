@@ -226,12 +226,162 @@ HaplotypeCaller{
 
 	script:
 	"""
+	module load gatk/4.6.2.0 
+
 	echo -e "[$(date)] Llamando variantes con HaplotypeCaller\n"
 
 	gatk HaplotypeCaller \
 	-R ${RefGenomeFile} \
 	-I ${recal_bamFile} \
 	-O P${meta.id}_raw.vcf
+	"""
+}
+
+VariantSelection{
+	input:
+	tuple path(RefGenomeFile), path(RefGenomeFile_idx)
+	tuple val(meta), path(raw_vcf)
+
+	output:
+	tuple val(meta), path("P${meta.id}_raw_SNPs.vcf"), path("P${meta.id}_raw_INDELs.vcf")
+
+	script:
+	"""
+	module load gatk/4.6.2.0
+
+	echo -e "[$(date)] Identificación de haplotipos completado. Iniciando proceso de selección de tipo de variantes con SelectVariants\n"
+	echo -e "[$(date)] Seleccionando SNPS\n"
+
+	gatk SelectVariants \
+	-R ${RefGenomeFile} \
+	-V ${raw_vcf} \
+	--select-type-to-include SNP \
+	-O P${meta.id}_raw_SNPs.vcf
+
+	echo -e "[$(date)] Selección de SNPs completado. Seleccionando Indels\n"
+
+	gatk SelectVariants \
+	-R ${RefGenomeFile} \
+	-V ${raw_vcf} \
+	--select-type-to-include INDEL \
+	-O P${meta.id}_raw_INDELs.vcf
+	"""
+}
+
+HardVariantFiltration{
+	input:
+	tuple path(RefGenomeFile), path(RefGenomeFile_idx)
+	tuple val(meta), path(raw_SNPs_vcf), path(raw_INDELs_vcf)
+
+	output:
+	tuple val(meta), path("P${meta.id}_SNPs_filtered.vcf"), path("P${meta.id}_INDELs_filtered.vcf")
+
+	script:
+	"""
+	module load gatk/4.6.2.0
+
+	echo -e "[$(date)] Selección de tipo de variantes completado. Inciando filtrado de variantes con VariantFiltration. SUJETO A CAMBIOS\n"
+	echo -e "[$(date)] Filtrando SNPs\n"
+
+	gatk VariantFiltration \
+	-R ${RefGenomeFile} \
+	-V ${raw_SNPs_vcf} \
+	-O P${meta.id}_SNPs_filtered.vcf \
+	--filter-name "QD_filter" \
+	--filter-expression "QD < 2.0" \
+	--filter-name "FS_filter" \
+	--filter-expression "FS > 60.0" \
+	--filter-name "SOR_filter" \
+	--filter-expression "SOR > 4.0" \
+	--filter-name "MQ_filter" \
+	--filter-expression "MQ < 40.0" \
+	--filter-name "MQRankSum_filter" \
+	--filter-expression "MQRankSum < -12.15" \
+	--filter-name "ReadPosRankSum_filter" \
+	--filter-expression "ReadPosRankSum < -8.5"
+
+	echo -e "[$(date)] Filtrado de SNPs completado. Iniciando Filtrado de INDELs\n"
+
+	gatk VariantFiltration \
+	-R ${RefGenomeFile} \
+	-V ${raw_INDELs_vcf} \
+	-O P${meta.id}_INDELs_filtered.vcf \
+	--filter-name "QD_filter" \
+	--filter-expression "QD < 2.0" \
+	--filter-name "FS_filter" \
+	--filter-expression "FS > 200.0" \
+	--filter-name "SOR_filter" \
+	--filter-expression "SOR > 10.0"
+
+	echo -e "[$(date)] FIltrado de Indels completado\n"
+
+	"""
+}
+
+VcfJoin_and_Normalization{
+	input:
+	tuple path(RefGenomeFile), path(RefGenomeFile_idx)
+	tuple val(meta), path(filtered_SNPs_vcf), path(filtered_INDELs_vcf)	
+
+	output:
+	tuple val(meta), path("P${meta.id}_norm.vcf.gz"), path("P${meta.id}_norm.vcf.gz.csi")
+	
+	script:
+	"""
+	module load bcftools/1.22	
+	
+	echo -e "[$(date)] El llamado de variantes ha sido exitoso. Uniendo y normalizando vcfs de INDELs y SNPs\n"
+
+	bcftools sort ${filtered_INDELs_vcf} -o P${meta.id}_INDELs_filtered_sort.vcf.gz -Oz
+	bcftools sort ${filtered_SNPs_vcf} -o P${meta.id}_SNPs_filtered_sort.vcf.gz -Oz
+	bcftools index P${meta.id}_INDELs_filtered_sort.vcf.gz 
+	bcftools index P${meta.id}_SNPs_filtered_sort.vcf.gz
+	bcftools norm -m -any -f ${RefGenomeFile} P${meta.id}_INDELs_filtered_sort.vcf.gz -o P${meta.id}_INDELs_filtered_norm.vcf.gz -Oz
+	bcftools norm -m -any -f ${RefGenomeFile} P${meta.id}_SNPs_filtered_sort.vcf.gz -o P${meta.id}_SNPs_filtered_norm.vcf.gz -Oz
+	bcftools index P${meta.id}_INDELs_filtered_norm.vcf.gz
+        bcftools index P${meta.id}_SNPs_filtered_norm.vcf.gz
+	bcftools concat -a P${meta.id}_INDELs_filtered_norm.vcf.gz P${meta.id}_SNPs_filtered_norm.vcf.gz -o P${meta.id}_norm.vcf.gz -Oz
+	bcftools index P${meta.id}_norm.vcf.gz
+	"""
+}
+
+SoftVariantFiltration{
+	input:
+	tuple val(meta), path(norm_vcf), path(norm_vcf_idx)
+
+	output:
+	tuple val(meta), path("P${meta.id}_final.vcf.gz"), path("P${meta.id}:final.vcf.gz")
+	
+
+	script:
+	"""
+        module load bcftools/1.22       
+
+	echo -e "[$(date)] Filtrando variantes de baja calidad\n"
+
+	bcftools view -i "QUAL>30 && FORMAT/GQ>30 && FORMAT/DP>10 && (GT=='1/1' || GT=='0/0' || (GT=='0/1' && (FORMAT/AD[0:1])/(FORMAT/AD[0:0]+FORMAT/AD[0:1])>0.18))" ${norm_vcf} \
+	-o P${meta.id}_final.vcf.gz 
+	bcftools index P${meta.id}_final.vcf.gz
+	echo "Listo :3"
+
+	"""
+}
+
+VcfMerge{
+	input:
+	tuple val(meta), path(final_vcfs), path(final_vcfs_idx)
+
+	output:
+	tuple val(meta), path("complete_family.vcf.gz"), path("complete_family.vcf.gz.csi")
+
+	script:
+	"""
+	module load bcftools/1.22
+
+	echo -e "[$(date) Uniendo todos los vcfs...]"
+
+	bcftools merge ${final_vcfs} -Oz -o complete_family.vcf.gz
+	bcftools index complete_family.vcf.gz
 	"""
 }
 
@@ -267,6 +417,20 @@ workflow {
 	AlignmentSummaryMetrics2(RefGenomeIndexed.out, BQSR_and_ApplyBQSR.out)
 
 	HaplotypeCaller(RefGenomeIndexed.out, BQSR_and_ApplyBQSR.out)
+
+	VariantSelection(RefGenomeIndexed.out, HaplotypeCaller.out)
+
+	HardVariantFiltration(RefGenomeIndexed.out, VariantSelection.out)
+
+	VcfJoin_and_Normalization(VariantSelection.out)	
+
+	SoftVariantFiltration(VcfJoin_and_Normalization.out)
+
+	VcfMerge(SoftVariantFiltration.out.collect())
+
+	# Variant annotation starts here
+
+	
 
 	publish:
 	fastqc1_reports = Fastqc_1.out.html, Fastqc_1.out.zip 
