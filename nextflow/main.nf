@@ -494,7 +494,7 @@ workflow {
 		.splitCsv(header: true)
 		.map { row ->
 			tuple(
-				[id: row.id, pedigree: row.pedigree, status: row.status], 
+				[id: row.id, pedigree_status: row.pedigree_status, condition: row.condition], 
 				file(row.fwd),
 				file(row.rvs)
 			)	
@@ -510,7 +510,7 @@ workflow {
 
 	MarkDuplicates(BwaAlignment.out)
 	
-	#Here, the variant calling processes starts.
+	#Variant calling starts here.
 
 	AlignmentSummaryMetrics1(RefGenomeIndexed.out, MarkDuplicates.out.markdup_bamFiles)
 

@@ -1,4 +1,4 @@
-id,pedigree,status,fwd,rvs
+id,pedigree_status,condition,fwd,rvs
 1,proband,affected,/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/fastq_data/raw_data/P1_1.fastq.gz,/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/fastq_data/raw_data/P1_2.fastq.gz
 2,mother,unaffected,/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/fastq_data/raw_data/P2_1.fastq.gz,/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/fastq_data/raw_data/P2_2.fastq.gz
 3,father,unaffected,/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/fastq_data/raw_data/P3_1.fastq.gz,/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/fastq_data/raw_data/P3_2.fastq.gz
