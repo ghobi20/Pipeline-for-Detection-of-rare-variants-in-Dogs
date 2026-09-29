@@ -1,10 +1,8 @@
-####################################################################################################
-Aquí va en canal y los parámetros. Aún no se como configurarlos, entonces comenzaré con los procesos.
-#####################################################################################################
 export NXF_SYNTAX_PARSER=v2
 
 params{
 	refGenome = 'canFam4'
+	annovar_dir = "/home/sgamino/annovar"
 }
 
 process fastqc_1 {
@@ -372,7 +370,8 @@ VcfMerge{
 	tuple val(meta), path(final_vcfs), path(final_vcfs_idx)
 
 	output:
-	tuple val(meta), path("complete_family.vcf.gz"), path("complete_family.vcf.gz.csi")
+	tuple path("complete_family.vcf.gz"), path("complete_family.vcf.gz.csi"), emit: complete_out
+	path("complete_family.vcf.gz"), emit: vcf_only
 
 	script:
 	"""
@@ -385,6 +384,109 @@ VcfMerge{
 	"""
 }
 
+AnnDatabaseDownload{
+	input:
+	val(RefGenome)
+
+	output:
+	path("dog_ann_db")
+
+	script:	
+	def Dog10k_AF
+	def ncbiRefSeqLink
+	def refGene
+	def refGeneMrna
+	def refSeq
+	def canVAS_backbone_MAF
+	def canVAS_backbone_minorAllele
+	def canVAS_IMP_MAF
+	def canVAS_IMP_minorAllele
+
+	if (RefGenome == "canFam4"){
+		Dog10k_AF = "https://zenodo.org/records/(?)/files/canFam4_Dog10k_AF.txt"
+		ncbiRefSeqLink = "https://zenodo.org/records/(?)/files/canFam4_ncbiRefSeqLink.txt"
+		refGene = "https://zenodo.org/records/(?)/files/canFam4_refGene.txt"
+		refGeneMrna = "https://zenodo.org/records/(?)/files/canFam4_refGeneMrna.fa"
+		refSeq = "https://zenodo.org/records/(?)/files/canFam4.fa"
+		canVAS_backbone_MAF = "https://zenodo.org/records/(?)/files/canFam4_canVAS_backbone_MAF.txt"
+		canVAS_backbone_minorAllele = "https://zenodo.org/records/(?)/files/canFam4_canVAS_backbone_minorAllele.txt"
+		canVAS_IMP_MAF = "https://zenodo.org/records/(?)/files/canFam4_canVAS_IMP_MAF.txt"
+		canVAS_IMP_minorAllele = "https://zenodo.org/records/(?)/files/canFam4_canVAS_IMP_minorAllele.txt"	
+
+	} else if (RefGenome == "canFam6"){
+                Dog10k_AF = "https://zenodo.org/records/(?)/files/canFam6_Dog10k_AF.txt"
+                ncbiRefSeqLink = "https://zenodo.org/records/(?)/files/canFam6_ncbiRefSeqLink.txt"
+                refGene = "https://zenodo.org/records/(?)/files/canFam6_refGene.txt"
+                refGeneMrna = "https://zenodo.org/records/(?)/files/canFam6_refGeneMrna.fa"
+                refSeq = "https://zenodo.org/records/(?)/files/canFam6.fa" 
+	}	
+
+	"""
+	mkdir -p dog_ann_db/${RefGenome}_seq
+
+	wget --timestamping ${Dog10k_AF} -O dog_ann_db/${RefGenome}_Dog10k_AF.txt
+        wget --timestamping ${ncbiRefSeqLink} -O dog_ann_db/${RefGenome}_ncbiRefSeqLink.txt
+        wget --timestamping ${refGene} -O dog_ann_db/${RefGenome}_refGene.txt
+        wget --timestamping ${refGeneMrna} -O dog_ann_db/${RefGenome}_refGeneMrna.fa
+        wget --timestamping ${refSeq} -O dog_ann_db/${RefGenome}_seq/${RefGenome}.fa
+
+	if ("${RefGenome}" == "canFam4"){
+		wget --timestamping ${canVAS_backbone_MAF} -O dog_ann_db/${RefGenome}_canVAS_backbone_MAF.txt
+        	wget --timestamping ${canVAS_backbone_minorAllele} -O dog_ann_db/${RefGenome}_canVAS_backbone_minorAllele.txt
+                wget --timestamping ${canVAS_IMP_MAF} -O dog_ann_db/${RefGenome}_canVAS_IMP_MAF.txt
+                wget --timestamping ${canVAS_IMP_minorAllele} -O dog_ann_db/${RefGenome}_canVAS_IMP_minorAllele.txt                      
+	}
+	"""
+}
+
+Vcf4_2_avInput{
+	input:
+	tuple path(complete_vcf), path(complete_vcf_idx)
+	path(annovar_dir)
+
+	output:
+	path ("complete_family.avinput")
+
+	script:
+	"""
+	${annovar_dir}/convert2annovar.pl -format vcf4 -includeinfo -allsample ${complete_vcf} > complete_family.avinput
+	"""
+}
+
+VariantAnnotation{
+	input:
+	path(annovar_dir)
+	path(dog_ann_db)
+	path(complete_avinput)
+	tuple path(ann_databases), path(ann_sequence)
+
+	output:
+	path("complete_family.${RefGenomeFile.simpleName}_multianno.csv")
+
+	script:
+	"""
+	if ("${RefGenomeFile.simpleName}" == "canFam4"){
+		${annovar_dir}/table_annovar.pl ${complete_avinput} ${dog_ann_db} \
+		-buildver ${RefGenomeFile.simpleName} \
+		-out complete_family \
+		-remove \
+		-protocol refGene,Dog10k_AF,canVAS_backbone_minorAllele,canVAS_backbone_MAF,canVAS_IMP_minorAllele,canVAS_IMP_MAF \
+		-operation g,f,f,f,f,f \
+		-nastring . \
+		-csvout
+	} else if ("${RefGenomeFile.simpleName}" == "canFam6"){
+	        ${annovar_dir}/table_annovar.pl ${complete_avinput} ${dog_ann_db} \
+                -buildver ${RefGenomeFile.simpleName} \
+                -out complete_family \
+                -remove \
+                -protocol refGene,Dog10k_AF \
+                -operation g,f \
+                -nastring . \
+                -csvout
+	}	
+	"""
+}
+
 workflow {
 
 	main:
@@ -392,7 +494,7 @@ workflow {
 		.splitCsv(header: true)
 		.map { row ->
 			tuple(
-				[id: row.id, status: row.status], 
+				[id: row.id, pedigree: row.pedigree, status: row.status], 
 				file(row.fwd),
 				file(row.rvs)
 			)	
@@ -408,7 +510,7 @@ workflow {
 
 	MarkDuplicates(BwaAlignment.out)
 	
-	#Here, the variant calling processes start.
+	#Here, the variant calling processes starts.
 
 	AlignmentSummaryMetrics1(RefGenomeIndexed.out, MarkDuplicates.out.markdup_bamFiles)
 
@@ -430,7 +532,11 @@ workflow {
 
 	# Variant annotation starts here
 
-	
+	AnnDatabaseDownload(val(params.refGenome))
+
+	Vcf4_2_avInput(VcfMerge.out.complete_out, path(params.annovar_dir))
+
+	VariantAnnotation(path(params.annovar_dir), RefGenomeIndexed.out, Vcf4_2_avInput.out, AnnDatabaseDownload.out)
 
 	publish:
 	fastqc1_reports = Fastqc_1.out.html, Fastqc_1.out.zip 
@@ -439,6 +545,9 @@ workflow {
 	markdup_BamFiles_metrics = MarkDuplicates.out.markdup_bamFiles_metrics
 	alignment_summary_metrics1 = AlignmentSummaryMetrics1.out
 	alignment_summary_metrics2 = AlignmentSummaryMetrics2.out
+	complete_family_vcf = VcfMerge.out.vcf_only
+	complete_family_avinput = Vcf4_2_avInput.out	
+	complete_family_annotated = VariantAnnotation.out
 }
 
 output {
@@ -469,5 +578,20 @@ output {
 
 	alignment_summary_metrics2{
 		path 'output/bam_data/qc_metrics'
+		mode 'copy'
+	}
+
+	complete_family_vcf{
+		path 'output/vcf_data/'
+		mode 'copy'
+	}
+
+	complete_family_avinput{
+		path 'output/avinput_data/'
+		mode 'copy'
+	}
+
+	complete_family_annotated{
+		path 'output/annotated_csv/'
 		mode 'copy'
 	}
