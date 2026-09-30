@@ -1,18 +1,19 @@
-export NXF_SYNTAX_PARSER=v2
+#export NXF_SYNTAX_PARSER=v2
 
 params{
 	refGenome = 'canFam4'
-	annovar_dir = "/home/sgamino/annovar"
+	annovar_dir = '/home/sgamino/annovar'
+	datasheet = '/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/scripts/nextflow/datasheet.csv'
 }
 
-process fastqc_1 {
+process Fastqc_1 {
 
 	input:
 	tuple val(meta), path(fwd), path(rvs)  
 
 	output:
-	tuple val(meta), path("*_fastqc.html"), emit: html
-	tuple val(meta), path("*_fastqc.zip"), emit: zip	
+	path("P${meta.id}_fastqc.html"), emit: html
+	path("P${meta.id}_fastqc.zip"), emit: zip	
 
 	script:
 	"""
@@ -46,13 +47,13 @@ process Trimming {
 	"""
 }
 
-process refGenomeIndexed {	
+process RefGenomeIndexed {	
 
 	input:
 	val(refGenome)
 
 	output:
-	tuple path(${refGenome}.fa.gz), path("${refGenome}.fa.*")
+	tuple path("${refGenome}.fa.gz"), path("${refGenome}.fa.*")
 
 	script:
 	"""
@@ -134,7 +135,7 @@ process AlignmentSummaryMetrics1{
 	"""
 	module load picard/2.6.0
 
-	#Recolectar información de la calidad de la alineación
+	// Recolectar información de la calidad de la alineación
 	picard CollectAlignmentSummaryMetrics \
 	R=${refGenomeFile} \
 	I=${bamFile} \
@@ -142,13 +143,24 @@ process AlignmentSummaryMetrics1{
 	"""
 }
 
-BQSR_and_ApplyBQSR{
+process KnownVariantsDownload {
+}
+
+process BQSR {
+
+}
+
+process ApplyBQSR {
+
+}
+
+process BQSR_and_ApplyBQSR{
 	input:
 	tuple path(RefGenomeFile), path(RefGenomeFile_idx)
-	tuple val(meta) path(markdup_bamFiles), path(markdupl_bamFiles_idx)
+	tuple val(meta), path(markdup_bamFiles), path(markdup_bamFiles_idx)
 
 	output:
-	tuple val(meta), path("${meta.id}.markdup.sort.recal.bam")
+	tuple val(meta), path("${meta.id}.markdup.sort.recal.bam"), path("P${meta.id}.markdup.sort.recal.bam.bai")
 
 	script:
 
@@ -168,14 +180,14 @@ BQSR_and_ApplyBQSR{
 	"""
 	module load gatk/4.6.2.0
 
-	echo -e "[$(date)] Decargando bases de datos de variantes conocidas (Dog_10k)"
+	echo -e "[\$(date)] Decargando bases de datos de variantes conocidas (Dog_10k)"
 	
 	wget --timestamps "${knownSNPs}"
 	wget --timestamps "${knownSNPs}.tbi"
 	wget --timestamps "${knownINDELs}"
 	wget --timestamps "${knownINDELs}.tbi"
 
-	echo -e "[$(date)] Iniciando recalibración de base (BQSR) con BaseRecalibrator\n"	
+	echo -e "[\$(date)] Iniciando recalibración de base (BQSR) con BaseRecalibrator\n"	
 
 	gatk BaseRecalibrator \
 	-I ${markdup_bamFiles} \
@@ -184,7 +196,7 @@ BQSR_and_ApplyBQSR{
 	--known-sites ${refBuild}_AutoAndXPAR.nonSNPs.filter.GTFiltered.vcf.gz \
 	-O P${meta.id}_recal_data.table
 
-	echo -e "[$(date)] Recalibración de base completada. Aplicando la recalibración a los BAM con ApplyBQSR\n"
+	echo -e "[\$(date)] Recalibración de base completada. Aplicando la recalibración a los BAM con ApplyBQSR\n"
 
 	gatk ApplyBQSR \
 	-R ${RefGenomeFile} \
@@ -194,7 +206,7 @@ BQSR_and_ApplyBQSR{
 	"""	
 }
 
-process AlignmentSummaryMetrics2{
+process AlignmentSummaryMetrics2 {
         input:
         tuple path(refGenomeFile), path(refGenomeFile_idx)
         tuple val(meta), path(bamFile), path(bamFile_idx)
@@ -206,7 +218,6 @@ process AlignmentSummaryMetrics2{
         """
         module load picard/2.6.0
 
-        #Recolectar información de la calidad de la alineación
         picard CollectAlignmentSummaryMetrics \
         R=${refGenomeFile} \
         I=${bamFile} \
@@ -214,7 +225,7 @@ process AlignmentSummaryMetrics2{
         """
 }
 
-HaplotypeCaller{
+process HaplotypeCaller {
 	input:
 	tuple path(RefGenomeFile), path(RefGenomeFile_idx)
 	tuple val(meta), path(recal_bamFile) 
@@ -235,7 +246,7 @@ HaplotypeCaller{
 	"""
 }
 
-VariantSelection{
+process VariantSelection {
 	input:
 	tuple path(RefGenomeFile), path(RefGenomeFile_idx)
 	tuple val(meta), path(raw_vcf)
@@ -247,8 +258,8 @@ VariantSelection{
 	"""
 	module load gatk/4.6.2.0
 
-	echo -e "[$(date)] Identificación de haplotipos completado. Iniciando proceso de selección de tipo de variantes con SelectVariants\n"
-	echo -e "[$(date)] Seleccionando SNPS\n"
+	echo -e "[\$(date)] Identificación de haplotipos completado. Iniciando proceso de selección de tipo de variantes con SelectVariants\n"
+	echo -e "[\$(date)] Seleccionando SNPS\n"
 
 	gatk SelectVariants \
 	-R ${RefGenomeFile} \
@@ -266,7 +277,7 @@ VariantSelection{
 	"""
 }
 
-HardVariantFiltration{
+process HardVariantFiltration {
 	input:
 	tuple path(RefGenomeFile), path(RefGenomeFile_idx)
 	tuple val(meta), path(raw_SNPs_vcf), path(raw_INDELs_vcf)
@@ -278,8 +289,8 @@ HardVariantFiltration{
 	"""
 	module load gatk/4.6.2.0
 
-	echo -e "[$(date)] Selección de tipo de variantes completado. Inciando filtrado de variantes con VariantFiltration. SUJETO A CAMBIOS\n"
-	echo -e "[$(date)] Filtrando SNPs\n"
+	echo -e "[\$(date)] Selección de tipo de variantes completado. Inciando filtrado de variantes con VariantFiltration. SUJETO A CAMBIOS\n"
+	echo -e "[\$(date)] Filtrando SNPs\n"
 
 	gatk VariantFiltration \
 	-R ${RefGenomeFile} \
@@ -298,7 +309,7 @@ HardVariantFiltration{
 	--filter-name "ReadPosRankSum_filter" \
 	--filter-expression "ReadPosRankSum < -8.5"
 
-	echo -e "[$(date)] Filtrado de SNPs completado. Iniciando Filtrado de INDELs\n"
+	echo -e "[\$(date)] Filtrado de SNPs completado. Iniciando Filtrado de INDELs\n"
 
 	gatk VariantFiltration \
 	-R ${RefGenomeFile} \
@@ -311,12 +322,12 @@ HardVariantFiltration{
 	--filter-name "SOR_filter" \
 	--filter-expression "SOR > 10.0"
 
-	echo -e "[$(date)] FIltrado de Indels completado\n"
+	echo -e "[\$(date)] FIltrado de Indels completado\n"
 
 	"""
 }
 
-VcfJoin_and_Normalization{
+process VcfJoin_and_Normalization {
 	input:
 	tuple path(RefGenomeFile), path(RefGenomeFile_idx)
 	tuple val(meta), path(filtered_SNPs_vcf), path(filtered_INDELs_vcf)	
@@ -343,21 +354,20 @@ VcfJoin_and_Normalization{
 	"""
 }
 
-SoftVariantFiltration{
+process SoftVariantFiltration {
 	input:
 	tuple val(meta), path(norm_vcf), path(norm_vcf_idx)
 
 	output:
-	tuple val(meta), path("P${meta.id}_final.vcf.gz"), path("P${meta.id}:final.vcf.gz")
-	
+	tuple val(meta), path("P${meta.id}_final.vcf.gz"), path("P${meta.id}_final.vcf.gz")
 
 	script:
 	"""
         module load bcftools/1.22       
 
-	echo -e "[$(date)] Filtrando variantes de baja calidad\n"
+	echo -e "[\$(date)] Filtrando variantes de baja calidad\n"
 
-	bcftools view -i "QUAL>30 && FORMAT/GQ>30 && FORMAT/DP>10 && (GT=='1/1' || GT=='0/0' || (GT=='0/1' && (FORMAT/AD[0:1])/(FORMAT/AD[0:0]+FORMAT/AD[0:1])>0.18))" ${norm_vcf} \
+	bcftools view -f PASS -i "QUAL>30 && FORMAT/GQ>30 && FORMAT/DP>10 && (GT=='1/1' || GT=='0/0' || (GT=='0/1' && (FORMAT/AD[0:1])/(FORMAT/AD[0:0]+FORMAT/AD[0:1])>0.18))" ${norm_vcf} \
 	-o P${meta.id}_final.vcf.gz 
 	bcftools index P${meta.id}_final.vcf.gz
 	echo "Listo :3"
@@ -365,9 +375,10 @@ SoftVariantFiltration{
 	"""
 }
 
-VcfMerge{
+process VcfMerge {
 	input:
-	tuple val(meta), path(final_vcfs), path(final_vcfs_idx)
+	path(final_vcfs) 
+	path(final_vcfs_idx)
 
 	output:
 	tuple path("complete_family.vcf.gz"), path("complete_family.vcf.gz.csi"), emit: complete_out
@@ -377,14 +388,14 @@ VcfMerge{
 	"""
 	module load bcftools/1.22
 
-	echo -e "[$(date) Uniendo todos los vcfs...]"
+	echo -e "[\$(date) Uniendo todos los vcfs...]"
 
 	bcftools merge ${final_vcfs} -Oz -o complete_family.vcf.gz
 	bcftools index complete_family.vcf.gz
 	"""
 }
 
-AnnDatabaseDownload{
+process AnnDatabaseDownload{
 	input:
 	val(RefGenome)
 
@@ -439,7 +450,7 @@ AnnDatabaseDownload{
 	"""
 }
 
-Vcf4_2_avInput{
+process Vcf4_2_avInput {
 	input:
 	tuple path(complete_vcf), path(complete_vcf_idx)
 	path(annovar_dir)
@@ -453,7 +464,7 @@ Vcf4_2_avInput{
 	"""
 }
 
-VariantAnnotation{
+process VariantAnnotation {
 	input:
 	path(annovar_dir)
 	path(dog_ann_db)
@@ -504,17 +515,23 @@ workflow {
 
 	Trimming(sampleMetadata_ch)
 
-	RefGenomeIndexed(val(params.refGenome))
+	RefGenomeIndexed(channel.value(params.refGenome))
 
 	BwaAlignment(RefGenomeIndexed.out, Trimming.out.fastp_trim)
 
 	MarkDuplicates(BwaAlignment.out)
 	
-	#Variant calling starts here.
+	// Variant calling starts here.
 
 	AlignmentSummaryMetrics1(RefGenomeIndexed.out, MarkDuplicates.out.markdup_bamFiles)
 
-	BQSR_and_ApplyBQSR(RefGenomeIndexed.out, MarkDuplicates.out.markdupl_bamFiles)	
+	KnownVariantsDownload()
+
+	BQSR()
+
+	ApplyBQSR()
+
+	BQSR_and_ApplyBQSR(RefGenomeIndexed.out, MarkDuplicates.out.markdup_bamFiles)	
 
 	AlignmentSummaryMetrics2(RefGenomeIndexed.out, BQSR_and_ApplyBQSR.out)
 
@@ -524,23 +541,26 @@ workflow {
 
 	HardVariantFiltration(RefGenomeIndexed.out, VariantSelection.out)
 
-	VcfJoin_and_Normalization(VariantSelection.out)	
+	VcfJoin_and_Normalization(RefGenomeIndexed.out, HardVariantFiltration.out)	
 
 	SoftVariantFiltration(VcfJoin_and_Normalization.out)
 
-	VcfMerge(SoftVariantFiltration.out.collect())
+	VcfMerge(SoftVariantFiltration.out
+					.toSortedList {a,b -> a[0].id <=> b[0].id}
+					.map {rows -> [rows.collect{row -> row[1]}, rows.collect{row -> row[2]}]}
+	)
 
-	# Variant annotation starts here
+	// Variant annotation starts here
 
-	AnnDatabaseDownload(val(params.refGenome))
+	AnnDatabaseDownload(channel.value(params.refGenome))
 
-	Vcf4_2_avInput(VcfMerge.out.complete_out, path(params.annovar_dir))
+	Vcf4_2_avInput(VcfMerge.out.complete_out, channel.fromPath(params.annovar_dir))
 
-	VariantAnnotation(path(params.annovar_dir), RefGenomeIndexed.out, Vcf4_2_avInput.out, AnnDatabaseDownload.out)
+	VariantAnnotation(channel.fromPath(params.annovar_dir), RefGenomeIndexed.out, Vcf4_2_avInput.out, AnnDatabaseDownload.out)
 
 	publish:
-	fastqc1_reports = Fastqc_1.out.html, Fastqc_1.out.zip 
-	trimming_reports = Trimming.out.fastp_json, Trimming.out.fastp_html
+	fastqc1_reports = Fastqc_1.out.html.mix(Fastqc_1.out.zip) 
+	trimming_reports = Trimming.out.fastp_json.mix(Trimming.out.fastp_html)
 	markdup_BamFiles = MarkDuplicates.out.markdup_bamFiles
 	markdup_BamFiles_metrics = MarkDuplicates.out.markdup_bamFiles_metrics
 	alignment_summary_metrics1 = AlignmentSummaryMetrics1.out
@@ -556,7 +576,7 @@ output {
 		mode 'copy'
 	}
 
-	trimming_qc1_reports{
+	trimming_reports{
 		path 'input/fastq_data/trim_data/qc_reports'
 		mode 'copy'
 	}
@@ -566,7 +586,7 @@ output {
 		mode 'copy'
 	}
 
-	markdup_BamFiles{
+	markdup_BamFiles_metrics{
 		path 'output/bam_data/qc_metrics'
 		mode 'copy'
 	}
@@ -595,3 +615,4 @@ output {
 		path 'output/annotated_csv/'
 		mode 'copy'
 	}
+}
