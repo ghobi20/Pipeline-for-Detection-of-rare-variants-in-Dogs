@@ -48,24 +48,23 @@ process Trimming {
 }
 
 process RefGenomeIndexed {	
-
 	input:
 	val(refGenome)
 
 	output:
-	tuple path("${refGenome}.fa.gz"), path("${refGenome}.fa.*")
+	tuple path("${refGenome}.fa"), path("${refGenome}.fa.*")
 
 	script:
 	"""
 	module load samtools/1.22.1
 	module load bwa/0.7.19
-	module load htslib/1.16
 
 	wget 'ftp://hgdownload.gi.ucsc.edu/goldenPath/${refGenome}/bigZips/${refGenome}.fa.gz'
 	gunzip ${refGenome}.fa.gz
 
-	samtools faidx ${refGenome}
-	bwa index ${refGenome}
+	samtools faidx ${refGenome}.fa
+	samtools 
+	bwa index ${refGenome}.fa
 	"""
 }
 
@@ -111,7 +110,7 @@ process MarkDuplicates {
 
 	script:
 	"""
-	module load picard/2.6.0
+	module load gatk/4.6.2.0
 	module load samtools/1.22.1
 
 	MarkDuplicates \
@@ -133,7 +132,7 @@ process AlignmentSummaryMetrics1{
 
 	script:
 	"""
-	module load picard/2.6.0
+	module load gatk/4.6.2.0
 
 	// Recolectar información de la calidad de la alineación
 	picard CollectAlignmentSummaryMetrics \
@@ -144,66 +143,78 @@ process AlignmentSummaryMetrics1{
 }
 
 process KnownVariantsDownload {
-}
-
-process BQSR {
-
-}
-
-process ApplyBQSR {
-
-}
-
-process BQSR_and_ApplyBQSR{
 	input:
-	tuple path(RefGenomeFile), path(RefGenomeFile_idx)
-	tuple val(meta), path(markdup_bamFiles), path(markdup_bamFiles_idx)
+	val(refBuild)
 
 	output:
-	tuple val(meta), path("${meta.id}.markdup.sort.recal.bam"), path("P${meta.id}.markdup.sort.recal.bam.bai")
+	tuple path("${refBuild}_all_SNP_GTFiltered.vcf.gz"), path("${refBuild}_all_SNP_GTFiltered.vcf.gz.tbi"), path("${refBuild}_AutoAndXPAR.nonSNPs.filter.GTFiltered.vcf.gz"), path("${refBuild}_AutoAndXPAR.nonSNPs.filter.GTFiltered.vcf.gz.tbi")
 
 	script:
-
-	def refBuild = RefGenomeFile.simpleName
-
-	def knownSNPs 
-	def knownINDELs
+        def knownSNPs
+        def knownINDELs
 
         if (refBuild == "canFam4") {
                 knownSNPs = "https://zenodo.org/records/(?)/files/canFam4_all_SNP_GTFiltered.vcf.gz"
-                knownINDELs = "https://zenodo.org/records/(?)/files/canFam4_AutoAndXPAR.nonSNPs.filter.GTFiltered.vcf.gz"    
+                knownINDELs = "https://zenodo.org/records/(?)/files/canFam4_AutoAndXPAR.nonSNPs.filter.GTFiltered.vcf.gz"
         } else if (refBuild == "canFam6") {
                 knownSNPs = "https://zenodo.org/records/(?)/files/canFam6_all_SNP_GTFiltered.vcf.gz"
-                knownINDELs = "https://zenodo.org/records/(?)/files/canFam6_AutoAndXPAR.nonSNPs.filter.GTFiltered.vcf.gz"	
-	}
+                knownINDELs = "https://zenodo.org/records/(?)/files/canFam6_AutoAndXPAR.nonSNPs.filter.GTFiltered.vcf.gz"       
+        }
 
+	"""
+	echo -e "[\$(date)] Decargando bases de datos de variantes conocidas (Dog_10k)"
+
+        wget "${knownSNPs}"
+        wget "${knownSNPs}.tbi"
+        wget "${knownINDELs}"
+        wget "${knownINDELs}.tbi"
+	"""
+}
+
+process BQSR {
+	input:
+	tuple path(RefGenomeFile), path(RefGenomeFile_idx)
+	tuple val(meta), path(markdup_bamFiles), path(markdup_bamFiles_idx)
+	tuple path(KnownSNPs), path(KnownSNPs_idx), path(KnownINDELs), path(KnownINDELs_idx)
+
+	output:
+	tuple val(meta), path(P${meta.id}_recal_data.table), path(markdup_bamFiles), path(markdup_bamFiles_idx) 
+
+	script:
 	"""
 	module load gatk/4.6.2.0
 
-	echo -e "[\$(date)] Decargando bases de datos de variantes conocidas (Dog_10k)"
-	
-	wget --timestamps "${knownSNPs}"
-	wget --timestamps "${knownSNPs}.tbi"
-	wget --timestamps "${knownINDELs}"
-	wget --timestamps "${knownINDELs}.tbi"
+	echo -e "[\$(date)] Iniciando recalibración de base (BQSR) con BaseRecalibrator\n"      
 
-	echo -e "[\$(date)] Iniciando recalibración de base (BQSR) con BaseRecalibrator\n"	
+        gatk BaseRecalibrator \
+        -I ${markdup_bamFiles} \
+        -R ${RefGenomeFile} \
+        --known-sites ${KnownSNPs} \
+        --known-sites ${KnownINDELs} \
+        -O P${meta.id}_recal_data.table
+	"""
+}
 
-	gatk BaseRecalibrator \
-	-I ${markdup_bamFiles} \
-	-R ${RefGenomeFile} \
-	--known-sites ${refBuild}_all_SNP_GTFiltered.vcf.gz \
-	--known-sites ${refBuild}_AutoAndXPAR.nonSNPs.filter.GTFiltered.vcf.gz \
-	-O P${meta.id}_recal_data.table
+process ApplyBQSR {
+	input:
+	tuple path(RefGenomeFile), path(RefGenomeFile_idx)	
+	tuple val(meta), path(recalData_table), path(markdup_bamFiles), path(markdup_bamFiles_idx)
 
-	echo -e "[\$(date)] Recalibración de base completada. Aplicando la recalibración a los BAM con ApplyBQSR\n"
+	output:
+	tuple val(meta), path("${meta.id}.markdup.sort.recal.bam"), path("${meta.id}.markdup.sort.recal.bam.bai")
 
-	gatk ApplyBQSR \
-	-R ${RefGenomeFile} \
-	-I ${markdup_bamFiles} \
-	--bqsr-recal-file ${meta.id}_recal_data.table \
-	-O ${meta.id}.markdup.sort.recal.bam
-	"""	
+	script:
+	"""
+	module load gatk/4.6.2.0
+
+        echo -e "[\$(date)] Recalibración de base completada. Aplicando la recalibración a los BAM con ApplyBQSR\n"
+
+        gatk ApplyBQSR \
+        -R ${RefGenomeFile} \
+        -I ${markdup_bamFiles} \
+        --bqsr-recal-file ${recalData_table} \
+        -O ${meta.id}.markdup.sort.recal.bam
+	"""
 }
 
 process AlignmentSummaryMetrics2 {
@@ -216,7 +227,7 @@ process AlignmentSummaryMetrics2 {
 
         script:
         """
-        module load picard/2.6.0
+        module load gatk/4.6.2.0
 
         picard CollectAlignmentSummaryMetrics \
         R=${refGenomeFile} \
@@ -359,7 +370,7 @@ process SoftVariantFiltration {
 	tuple val(meta), path(norm_vcf), path(norm_vcf_idx)
 
 	output:
-	tuple val(meta), path("P${meta.id}_final.vcf.gz"), path("P${meta.id}_final.vcf.gz")
+	tuple val(meta), path("P${meta.id}_final.vcf.gz"), path("P${meta.id}_final.vcf.gz.csi")
 
 	script:
 	"""
@@ -443,33 +454,19 @@ process AnnDatabaseDownload{
 
 	if ("${RefGenome}" == "canFam4"){
 		wget --timestamping ${canVAS_backbone_MAF} -O dog_ann_db/${RefGenome}_canVAS_backbone_MAF.txt
-        	wget --timestamping ${canVAS_backbone_minorAllele} -O dog_ann_db/${RefGenome}_canVAS_backbone_minorAllele.txt
+		wget --timestamping ${canVAS_backbone_minorAllele} -O dog_ann_db/${RefGenome}_canVAS_backbone_minorAllele.txt
                 wget --timestamping ${canVAS_IMP_MAF} -O dog_ann_db/${RefGenome}_canVAS_IMP_MAF.txt
                 wget --timestamping ${canVAS_IMP_minorAllele} -O dog_ann_db/${RefGenome}_canVAS_IMP_minorAllele.txt                      
 	}
 	"""
 }
 
-process Vcf4_2_avInput {
-	input:
-	tuple path(complete_vcf), path(complete_vcf_idx)
-	path(annovar_dir)
-
-	output:
-	path ("complete_family.avinput")
-
-	script:
-	"""
-	${annovar_dir}/convert2annovar.pl -format vcf4 -includeinfo -allsample ${complete_vcf} > complete_family.avinput
-	"""
-}
-
 process VariantAnnotation {
 	input:
 	path(annovar_dir)
+	val(refBuild)
+	path(complete_vcf)
 	path(dog_ann_db)
-	path(complete_avinput)
-	tuple path(ann_databases), path(ann_sequence)
 
 	output:
 	path("complete_family.${RefGenomeFile.simpleName}_multianno.csv")
@@ -477,7 +474,7 @@ process VariantAnnotation {
 	script:
 	"""
 	if ("${RefGenomeFile.simpleName}" == "canFam4"){
-		${annovar_dir}/table_annovar.pl ${complete_avinput} ${dog_ann_db} \
+		${annovar_dir}/table_annovar.pl ${complete_vcf} ${dog_ann_db} \
 		-buildver ${RefGenomeFile.simpleName} \
 		-out complete_family \
 		-remove \
@@ -486,7 +483,7 @@ process VariantAnnotation {
 		-nastring . \
 		-csvout
 	} else if ("${RefGenomeFile.simpleName}" == "canFam6"){
-	        ${annovar_dir}/table_annovar.pl ${complete_avinput} ${dog_ann_db} \
+	        ${annovar_dir}/table_annovar.pl ${complete_vcf} ${dog_ann_db} \
                 -buildver ${RefGenomeFile.simpleName} \
                 -out complete_family \
                 -remove \
@@ -525,11 +522,11 @@ workflow {
 
 	AlignmentSummaryMetrics1(RefGenomeIndexed.out, MarkDuplicates.out.markdup_bamFiles)
 
-	KnownVariantsDownload()
+	KnownVariantsDownload(channel.value(params.refGenome))
 
-	BQSR()
+	BQSR(RefGenomeIndexed.out, MarkDuplicates.out.markdup_bamFiles, KnownVariantsDownload.out)
 
-	ApplyBQSR()
+	ApplyBQSR(RefGenomeIndexed.out, BQSR.out)
 
 	BQSR_and_ApplyBQSR(RefGenomeIndexed.out, MarkDuplicates.out.markdup_bamFiles)	
 
@@ -554,9 +551,7 @@ workflow {
 
 	AnnDatabaseDownload(channel.value(params.refGenome))
 
-	Vcf4_2_avInput(VcfMerge.out.complete_out, channel.fromPath(params.annovar_dir))
-
-	VariantAnnotation(channel.fromPath(params.annovar_dir), RefGenomeIndexed.out, Vcf4_2_avInput.out, AnnDatabaseDownload.out)
+	VariantAnnotation(channel.fromPath(params.annovar_dir), channel.value(params.refGenome), VcfMerge.out.complete_out, AnnDatabaseDownload.out)
 
 	publish:
 	fastqc1_reports = Fastqc_1.out.html.mix(Fastqc_1.out.zip) 
