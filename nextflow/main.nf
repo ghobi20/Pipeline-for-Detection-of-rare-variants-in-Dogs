@@ -93,7 +93,7 @@ process BwaAlignment {
 	echo "Read Group:"
 	echo "@RG ID:\${id} PU:\${pu} SM:P${meta.id} LB:\${lb} PL:\${pl}"
 
-	bwa mem -M -t 8 -R "@RG\tID:\${id}\tPU:\${pu}\tSM:P${meta.id}\tLB:\${lb}\tPL:\${pl}" \
+	bwa mem -M -R "@RG\tID:\${id}\tPU:\${pu}\tSM:P${meta.id}\tLB:\${lb}\tPL:\${pl}" \
 	${refGenomeFile} \
 	${trim_reads[0]} ${trim_reads[1]} | samtools sort -o P${meta.id}.sort.bam
 	samtools index P${meta.id}.sort.bam 
@@ -239,7 +239,7 @@ process AlignmentSummaryMetrics2 {
 process HaplotypeCaller {
 	input:
 	tuple path(RefGenomeFile), path(RefGenomeFile_idx)
-	tuple val(meta), path(recal_bamFile) 
+	tuple val(meta), path(recal_bamFile), path(recal_bamFile_idx) 
 
 	output:
 	tuple val(meta), path("P${meta.id}_raw.vcf")
@@ -248,7 +248,7 @@ process HaplotypeCaller {
 	"""
 	module load gatk/4.6.2.0 
 
-	echo -e "[$(date)] Llamando variantes con HaplotypeCaller\n"
+	echo -e "[\$(date)] Llamando variantes con HaplotypeCaller\n"
 
 	gatk HaplotypeCaller \
 	-R ${RefGenomeFile} \
@@ -388,9 +388,8 @@ process SoftVariantFiltration {
 
 process VcfMerge {
 	input:
-	path(final_vcfs) 
-	path(final_vcfs_idx)
-
+	tuple val(meta), path(final_vcfs), path(final_vcfs_idx) 
+	
 	output:
 	tuple path("complete_family.vcf.gz"), path("complete_family.vcf.gz.csi"), emit: complete_out
 	path("complete_family.vcf.gz"), emit: vcf_only
@@ -446,17 +445,26 @@ process AnnDatabaseDownload{
 	"""
 	mkdir -p dog_ann_db/${RefGenome}_seq
 
-	wget --timestamping ${Dog10k_AF} -O dog_ann_db/${RefGenome}_Dog10k_AF.txt
-        wget --timestamping ${ncbiRefSeqLink} -O dog_ann_db/${RefGenome}_ncbiRefSeqLink.txt
-        wget --timestamping ${refGene} -O dog_ann_db/${RefGenome}_refGene.txt
-        wget --timestamping ${refGeneMrna} -O dog_ann_db/${RefGenome}_refGeneMrna.fa
-        wget --timestamping ${refSeq} -O dog_ann_db/${RefGenome}_seq/${RefGenome}.fa
+	wget ${Dog10k_AF}
+	mv ${RefGenome}_Dog10k_AF.txt dog_ann_db
+        wget ${ncbiRefSeqLink} 
+	mv ${RefGenome}_ncbiRefSeqLink.txt dog_ann_db
+        wget ${refGene} 
+	mv ${RefGenome}_refGene.txt dog_ann_db
+        wget ${refGeneMrna} 
+	mv ${RefGenome}_refGeneMrna.fa dog_ann_db
+        wget ${refSeq} 
+	mv ${RefGenome}.fa dog_ann_db/${RefGenome}_seq
 
-	if ["${RefGenome}" == "canFam4"]; then
-		wget --timestamping ${canVAS_backbone_MAF} -O dog_ann_db/${RefGenome}_canVAS_backbone_MAF.txt
-		wget --timestamping ${canVAS_backbone_minorAllele} -O dog_ann_db/${RefGenome}_canVAS_backbone_minorAllele.txt
-                wget --timestamping ${canVAS_IMP_MAF} -O dog_ann_db/${RefGenome}_canVAS_IMP_MAF.txt
-                wget --timestamping ${canVAS_IMP_minorAllele} -O dog_ann_db/${RefGenome}_canVAS_IMP_minorAllele.txt                      
+	if [["${RefGenome}" == "canFam4"]]; then
+		wget ${canVAS_backbone_MAF} 
+		mv ${RefGenome}_canVAS_backbone_MAF.txt dog_ann_db
+		wget ${canVAS_backbone_minorAllele} 
+		mv ${RefGenome}_canVAS_backbone_minorAllele.txt
+                wget ${canVAS_IMP_MAF} 
+		mv ${RefGenome}_canVAS_IMP_MAF.txt
+                wget ${canVAS_IMP_minorAllele} 
+		mv ${RefGenome}_canVAS_IMP_minorAllele.txt                      
 	fi
 	"""
 }
@@ -469,12 +477,13 @@ process VariantAnnotation {
 	path(dog_ann_db)
 
 	output:
-	path("complete_family.${RefGenomeFile.simpleName}_multianno.csv")
+	path("complete_family.${refBuild}_multianno.csv")
 
 	script:
 	"""
-	if ["${RefGenomeFile.simpleName}" == "canFam4"]; then
+	if [["${refBuild}" == "canFam4"]]; then
 		${annovar_dir}/table_annovar.pl ${complete_vcf} ${dog_ann_db} \
+		-vcfinput
 		-buildver "${refBuild}" \
 		-out complete_family \
 		-remove \
@@ -482,9 +491,10 @@ process VariantAnnotation {
 		-operation g,f,f,f,f,f \
 		-nastring . \
 		-csvout
-	elif ["${RefGenomeFile.simpleName}" == "canFam6"]; then
+	elif [["${refBuild}" == "canFam6"]]; then
 	        ${annovar_dir}/table_annovar.pl ${complete_vcf} ${dog_ann_db} \
-                -buildver "${refBuild}" \
+                -vcfinput
+		-buildver "${refBuild}" \
                 -out complete_family \
                 -remove \
                 -protocol refGene,Dog10k_AF \
@@ -528,9 +538,9 @@ workflow {
 
 	ApplyBQSR(RefGenomeIndexed.out, BQSR.out)	
 
-	AlignmentSummaryMetrics2(RefGenomeIndexed.out, BQSR_and_ApplyBQSR.out)
+	AlignmentSummaryMetrics2(RefGenomeIndexed.out, ApplyBQSR.out)
 
-	HaplotypeCaller(RefGenomeIndexed.out, BQSR_and_ApplyBQSR.out)
+	HaplotypeCaller(RefGenomeIndexed.out, ApplyBQSR.out)
 
 	VariantSelection(RefGenomeIndexed.out, HaplotypeCaller.out)
 
@@ -558,8 +568,7 @@ workflow {
 	markdup_BamFiles_metrics = MarkDuplicates.out.markdup_bamFiles_metrics
 	alignment_summary_metrics1 = AlignmentSummaryMetrics1.out
 	alignment_summary_metrics2 = AlignmentSummaryMetrics2.out
-	complete_family_vcf = VcfMerge.out.vcf_only
-	complete_family_avinput = Vcf4_2_avInput.out	
+	complete_family_vcf = VcfMerge.out.vcf_only	
 	complete_family_annotated = VariantAnnotation.out
 }
 
@@ -596,11 +605,6 @@ output {
 
 	complete_family_vcf{
 		path 'output/vcf_data/'
-		mode 'copy'
-	}
-
-	complete_family_avinput{
-		path 'output/avinput_data/'
 		mode 'copy'
 	}
 
