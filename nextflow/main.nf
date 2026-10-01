@@ -1,9 +1,9 @@
 #export NXF_SYNTAX_PARSER=v2
 
 params{
-	refGenome = 'canFam4'
-	annovar_dir = '/home/sgamino/annovar'
-	datasheet = '/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/scripts/nextflow/datasheet.csv'
+	refGenome: String = 'canFam4'
+	annovar_dir: Path = '/home/sgamino/annovar'
+	datasheet: Path = '/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/scripts/nextflow/datasheet.csv'
 }
 
 process Fastqc_1 {
@@ -52,7 +52,7 @@ process RefGenomeIndexed {
 	val(refGenome)
 
 	output:
-	tuple path("${refGenome}.fa"), path("${refGenome}.fa.*")
+	tuple path("${refGenome}.fa"), path("${refGenome}.{fa.*,dict}")
 
 	script:
 	"""
@@ -63,7 +63,7 @@ process RefGenomeIndexed {
 	gunzip ${refGenome}.fa.gz
 
 	samtools faidx ${refGenome}.fa
-	samtools 
+	samtools dict ${refGenome}.fa -o ${refGenome}.dict
 	bwa index ${refGenome}.fa
 	"""
 }
@@ -113,10 +113,10 @@ process MarkDuplicates {
 	module load gatk/4.6.2.0
 	module load samtools/1.22.1
 
-	MarkDuplicates \
-	I=${bam_file} \
-	O=P${meta.id}.markdup.sort.bam \
-	METRICS_FILE=P${meta.id}_markdup_metrics.txt
+	gatk MarkDuplicates \
+	-I ${bam_file} \
+	-O P${meta.id}.markdup.sort.bam \
+	-M P${meta.id}_markdup_metrics.txt
 
 	samtools index P${meta.id}.markdup.sort.bam 
 	"""
@@ -134,11 +134,11 @@ process AlignmentSummaryMetrics1{
 	"""
 	module load gatk/4.6.2.0
 
-	// Recolectar información de la calidad de la alineación
-	picard CollectAlignmentSummaryMetrics \
-	R=${refGenomeFile} \
-	I=${bamFile} \
-	O=P${meta.id}_alignment_summary_metrics_preBQSR.txt
+	# Recolectar información de la calidad de la alineación
+	gatk CollectAlignmentSummaryMetrics \
+	-R ${refGenomeFile} \
+	-I ${bamFile} \
+	-O P${meta.id}_alignment_summary_metrics_preBQSR.txt
 	"""
 }
 
@@ -178,7 +178,7 @@ process BQSR {
 	tuple path(KnownSNPs), path(KnownSNPs_idx), path(KnownINDELs), path(KnownINDELs_idx)
 
 	output:
-	tuple val(meta), path(P${meta.id}_recal_data.table), path(markdup_bamFiles), path(markdup_bamFiles_idx) 
+	tuple val(meta), path("P${meta.id}_recal_data.table"), path(markdup_bamFiles), path(markdup_bamFiles_idx) 
 
 	script:
 	"""
@@ -229,10 +229,10 @@ process AlignmentSummaryMetrics2 {
         """
         module load gatk/4.6.2.0
 
-        picard CollectAlignmentSummaryMetrics \
-        R=${refGenomeFile} \
-        I=${bamFile} \
-        O=P${meta.id}_alignment_summary_metrics_postBQSR.txt
+        gatk CollectAlignmentSummaryMetrics \
+        -R ${refGenomeFile} \
+        -I ${bamFile} \
+        -O P${meta.id}_alignment_summary_metrics_postBQSR.txt
         """
 }
 
@@ -278,7 +278,7 @@ process VariantSelection {
 	--select-type-to-include SNP \
 	-O P${meta.id}_raw_SNPs.vcf
 
-	echo -e "[$(date)] Selección de SNPs completado. Seleccionando Indels\n"
+	echo -e "[\$(date)] Selección de SNPs completado. Seleccionando Indels\n"
 
 	gatk SelectVariants \
 	-R ${RefGenomeFile} \
@@ -316,7 +316,7 @@ process HardVariantFiltration {
 	--filter-name "MQ_filter" \
 	--filter-expression "MQ < 40.0" \
 	--filter-name "MQRankSum_filter" \
-	--filter-expression "MQRankSum < -12.15" \
+	--filter-expression "MQRankSum < -12.5" \
 	--filter-name "ReadPosRankSum_filter" \
 	--filter-expression "ReadPosRankSum < -8.5"
 
@@ -350,7 +350,7 @@ process VcfJoin_and_Normalization {
 	"""
 	module load bcftools/1.22	
 	
-	echo -e "[$(date)] El llamado de variantes ha sido exitoso. Uniendo y normalizando vcfs de INDELs y SNPs\n"
+	echo -e "[\$(date)] El llamado de variantes ha sido exitoso. Uniendo y normalizando vcfs de INDELs y SNPs\n"
 
 	bcftools sort ${filtered_INDELs_vcf} -o P${meta.id}_INDELs_filtered_sort.vcf.gz -Oz
 	bcftools sort ${filtered_SNPs_vcf} -o P${meta.id}_SNPs_filtered_sort.vcf.gz -Oz
@@ -378,7 +378,7 @@ process SoftVariantFiltration {
 
 	echo -e "[\$(date)] Filtrando variantes de baja calidad\n"
 
-	bcftools view -f PASS -i "QUAL>30 && FORMAT/GQ>30 && FORMAT/DP>10 && (GT=='1/1' || GT=='0/0' || (GT=='0/1' && (FORMAT/AD[0:1])/(FORMAT/AD[0:0]+FORMAT/AD[0:1])>0.18))" ${norm_vcf} \
+	bcftools view -i "QUAL>30 && FORMAT/GQ>30 && FORMAT/DP>10 && (GT=='1/1' || GT=='0/0' || (GT=='0/1' && (FORMAT/AD[0:1])/(FORMAT/AD[0:0]+FORMAT/AD[0:1])>0.18))" ${norm_vcf} \
 	-o P${meta.id}_final.vcf.gz 
 	bcftools index P${meta.id}_final.vcf.gz
 	echo "Listo :3"
@@ -452,12 +452,12 @@ process AnnDatabaseDownload{
         wget --timestamping ${refGeneMrna} -O dog_ann_db/${RefGenome}_refGeneMrna.fa
         wget --timestamping ${refSeq} -O dog_ann_db/${RefGenome}_seq/${RefGenome}.fa
 
-	if ("${RefGenome}" == "canFam4"){
+	if ["${RefGenome}" == "canFam4"]; then
 		wget --timestamping ${canVAS_backbone_MAF} -O dog_ann_db/${RefGenome}_canVAS_backbone_MAF.txt
 		wget --timestamping ${canVAS_backbone_minorAllele} -O dog_ann_db/${RefGenome}_canVAS_backbone_minorAllele.txt
                 wget --timestamping ${canVAS_IMP_MAF} -O dog_ann_db/${RefGenome}_canVAS_IMP_MAF.txt
                 wget --timestamping ${canVAS_IMP_minorAllele} -O dog_ann_db/${RefGenome}_canVAS_IMP_minorAllele.txt                      
-	}
+	fi
 	"""
 }
 
@@ -465,7 +465,7 @@ process VariantAnnotation {
 	input:
 	path(annovar_dir)
 	val(refBuild)
-	path(complete_vcf)
+	tuple path(complete_vcf), path(complete_vcf_idx)
 	path(dog_ann_db)
 
 	output:
@@ -473,25 +473,25 @@ process VariantAnnotation {
 
 	script:
 	"""
-	if ("${RefGenomeFile.simpleName}" == "canFam4"){
+	if ["${RefGenomeFile.simpleName}" == "canFam4"]; then
 		${annovar_dir}/table_annovar.pl ${complete_vcf} ${dog_ann_db} \
-		-buildver ${RefGenomeFile.simpleName} \
+		-buildver "${refBuild}" \
 		-out complete_family \
 		-remove \
 		-protocol refGene,Dog10k_AF,canVAS_backbone_minorAllele,canVAS_backbone_MAF,canVAS_IMP_minorAllele,canVAS_IMP_MAF \
 		-operation g,f,f,f,f,f \
 		-nastring . \
 		-csvout
-	} else if ("${RefGenomeFile.simpleName}" == "canFam6"){
+	elif ["${RefGenomeFile.simpleName}" == "canFam6"]; then
 	        ${annovar_dir}/table_annovar.pl ${complete_vcf} ${dog_ann_db} \
-                -buildver ${RefGenomeFile.simpleName} \
+                -buildver "${refBuild}" \
                 -out complete_family \
                 -remove \
                 -protocol refGene,Dog10k_AF \
                 -operation g,f \
                 -nastring . \
                 -csvout
-	}	
+	fi
 	"""
 }
 
@@ -526,9 +526,7 @@ workflow {
 
 	BQSR(RefGenomeIndexed.out, MarkDuplicates.out.markdup_bamFiles, KnownVariantsDownload.out)
 
-	ApplyBQSR(RefGenomeIndexed.out, BQSR.out)
-
-	BQSR_and_ApplyBQSR(RefGenomeIndexed.out, MarkDuplicates.out.markdup_bamFiles)	
+	ApplyBQSR(RefGenomeIndexed.out, BQSR.out)	
 
 	AlignmentSummaryMetrics2(RefGenomeIndexed.out, BQSR_and_ApplyBQSR.out)
 
