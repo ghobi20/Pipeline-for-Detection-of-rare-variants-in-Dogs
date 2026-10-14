@@ -1,0 +1,9 @@
+#Voy a ignorar los directorios work/ y results/ de los dos pipelines porque pesan demasiado. Solo me quedré con los scripts
+**/work
+custom_pipeline/results
+sarek/sarek_results
+sarek/singularity_cache
+
+#También tengo que ignorar los cachés de nextflow
+**/.nextflow/
+**/.nextflow.log*

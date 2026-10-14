@@ -1,0 +1,5 @@
+ID,FAMILY,FAM_ID,KINSHIP,SEXUAL_CHR_COUNT,SEX,STATUS
+P1,1,1,proband,2,1,1
+P2,1,2,mother,2,1,0
+P3,1,3,father,2,0,0
+P4,1,4,sibling,2,0,0

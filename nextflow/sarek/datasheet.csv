@@ -1,0 +1,5 @@
+patient,sample,status,lane,fastq_1,fastq_2
+P1,proband,0,L1,/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/fastq_data/raw_data/P1_1.fastq.gz,/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/fastq_data/raw_data/P1_2.fastq.gz
+P2,mother,0,L2,/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/fastq_data/raw_data/P2_1.fastq.gz,/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/fastq_data/raw_data/P2_2.fastq.gz
+P3,father,0,L3,/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/fastq_data/raw_data/P3_1.fastq.gz,/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/fastq_data/raw_data/P3_2.fastq.gz
+P4,sibling,0,L4,/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/fastq_data/raw_data/P4_1.fastq.gz,/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/fastq_data/raw_data/P4_2.fastq.gz

@@ -1,0 +1,23 @@
+{
+	"input": "datasheet.csv", 
+	"outdir": "sarek_results_1", 
+	"tools": "haplotypecaller",
+	"skip_tools": "mosdepth,haplotypecaller_filter,dnascope_filter", 
+	"split_fastq": 33918540, 
+	"save_mapped": true,
+	"save_output_as_bam": true,
+	"trim_fastq": true,
+	"aligner": "bwa-mem", 
+	"save_mapped": true,
+	"save_output_as_bam": true,
+	"joint_germline": true,
+	"genome": null,
+	"fasta": "/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/resources/reference/canFam4/canFam4.fa",
+	"fasta_fai": "/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/resources/reference/canFam4/canFam4.fa.fai",
+	"dict": "/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/resources/reference/canFam4/canFam4.dict",	
+	"known_indels": "/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/resources/known_variants/canFam4/Dog_10k/AutoAndXPAR.nonSNPs.filter.FILTERED.vcf.gz",
+	"known_indels_tbi": "/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/resources/known_variants/canFam4/Dog_10k/AutoAndXPAR.nonSNPs.filter.FILTERED.vcf.gz.tbi",
+	"known_snps": "/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/resources/known_variants/canFam4/Dog_10k/all_SNP.FILTERED.vcf.gz",
+	"known_snps_tbi": "/mnt/data/cgonzaga/sgamino/Dog_epilepsy_project/resources/known_variants/canFam4/Dog_10k/all_SNP.FILTERED.vcf.gz.tbi",
+	"save_reference": true
+}
